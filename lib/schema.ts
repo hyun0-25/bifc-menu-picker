@@ -1,7 +1,14 @@
 // Design Ref: §3.1 — 식당 목록 파일의 형식 검사 규칙 (모르는 값은 허용하지 않음, 예약 여부만 "정보 없음" 가능)
-// 입력 조건·AI 답 검사 규칙은 이후 작업(PLAN 8, 11)에서 이 파일에 추가한다.
+// Design Ref: §3.2·§4 — 추천 요청(입력 조건) 검사 규칙
+// AI 답 검사 규칙은 이후 작업(PLAN 11)에서 이 파일에 추가한다.
 import { z } from "zod";
-import { CUISINES, MAX_WALK_MINUTES, RESERVATION_STATUSES } from "./types";
+import {
+  CUISINES,
+  INPUT_LIMITS,
+  MAX_WALK_MINUTES,
+  RESERVATION_STATUSES,
+  type RecommendRequest,
+} from "./types";
 
 /** 식당 한 곳의 검사 규칙 (lib/types.ts의 Restaurant와 같은 모양) */
 export const restaurantSchema = z.strictObject(
@@ -55,3 +62,80 @@ export const restaurantSchema = z.strictObject(
       ctx.addIssue({ code: "custom", message: "룸 인원은 최대 인원보다 클 수 없습니다" });
     }
   });
+
+// ── 추천 요청(입력 조건) ─────────────────────────────────────────────
+
+const { people, budget, maxWalkMinutes } = INPUT_LIMITS;
+
+/** 정수 범위 검사. 숫자가 아니거나 범위 밖이면 같은 안내 문구를 쓴다. */
+function intInRange(min: number, max: number, message: string) {
+  return z
+    .number({ error: message })
+    .int({ error: message })
+    .min(min, { error: message })
+    .max(max, { error: message });
+}
+
+/** 추천 요청 검사 규칙. 정해지지 않은 항목(이름·연락처 등)은 받지 않는다. */
+export const recommendRequestSchema = z
+  .strictObject(
+    {
+      purpose: z.enum(["lunch", "dinner"], {
+        error: "목적은 점심 약속 또는 팀 회식 중에서 골라 주세요",
+      }),
+      people: intInRange(
+        people.min,
+        people.max,
+        `${people.min}~${people.max}명 사이로 입력해 주세요`,
+      ),
+      budget: intInRange(
+        budget.min,
+        budget.max,
+        `${budget.min.toLocaleString("ko-KR")}~${budget.max.toLocaleString("ko-KR")}원 사이로 입력해 주세요`,
+      ),
+      cuisines: z
+        .array(z.enum(CUISINES, { error: "메뉴 취향은 정해진 메뉴 중에서 골라 주세요" }), {
+          error: "메뉴 취향은 정해진 메뉴 중에서 골라 주세요",
+        })
+        .max(CUISINES.length, { error: "메뉴 취향을 너무 많이 골랐습니다" })
+        .default([])
+        // 같은 메뉴를 두 번 보내도 한 번으로 친다
+        .transform((list) => [...new Set(list)]),
+      maxWalkMinutes: intInRange(
+        maxWalkMinutes.min,
+        maxWalkMinutes.max,
+        `도보 거리는 ${maxWalkMinutes.min}~${maxWalkMinutes.max}분 사이로 입력해 주세요 (비우면 기본값)`,
+      )
+        .nullish()
+        .transform((value) => value ?? undefined),
+      needRoom: z.boolean({ error: "룸 필요 여부가 올바르지 않습니다" }).default(false),
+      needReservation: z.boolean({ error: "예약 필요 여부가 올바르지 않습니다" }).default(false),
+    },
+    { error: "정해지지 않은 항목이 들어 있습니다" },
+  )
+  // PRD 4장: 룸·예약 조건은 팀 회식에서만 묻는다. 점심이면 화면에 남은 체크 값이 와도 무시한다.
+  .transform((request) =>
+    request.purpose === "lunch" ? { ...request, needRoom: false, needReservation: false } : request,
+  );
+
+export type RequestValidationResult =
+  | { ok: true; request: RecommendRequest }
+  | { ok: false; fields: Record<string, string> };
+
+/**
+ * 추천 요청을 검사한다. 실패하면 칸 이름별 안내 문구를 돌려준다 (칸마다 첫 번째 문제만).
+ * 특정 칸이 아닌 문제(요청 모양 자체가 틀림 등)는 "form" 칸에 담는다.
+ */
+export function parseRecommendRequest(body: unknown): RequestValidationResult {
+  const parsed = recommendRequestSchema.safeParse(body);
+  if (parsed.success) {
+    return { ok: true, request: parsed.data };
+  }
+
+  const fields: Record<string, string> = {};
+  for (const issue of parsed.error.issues) {
+    const field = typeof issue.path[0] === "string" ? issue.path[0] : "form";
+    fields[field] ??= issue.message;
+  }
+  return { ok: false, fields };
+}

@@ -1,0 +1,128 @@
+// PLAN 작업 8 점검: 서버가 받는 입력 조건을 범위·선택지대로 검사하는지 확인한다 (Design §3.2, §8.1 #2·#6)
+import { describe, expect, it } from "vitest";
+import { parseRecommendRequest } from "./schema";
+
+const valid = {
+  purpose: "dinner",
+  people: 10,
+  budget: 30000,
+  cuisines: ["한식", "고기"],
+  maxWalkMinutes: 10,
+  needRoom: true,
+  needReservation: true,
+};
+
+/** 검사 실패 시 칸별 안내를 꺼낸다 (통과하면 시험 실패). */
+function fieldsOf(body: unknown): Record<string, string> {
+  const result = parseRecommendRequest(body);
+  if (result.ok) throw new Error("실패해야 하는데 통과했습니다");
+  return result.fields;
+}
+
+describe("올바른 요청", () => {
+  it("모든 칸이 맞으면 그대로 통과한다", () => {
+    expect(parseRecommendRequest(valid)).toEqual({ ok: true, request: valid });
+  });
+
+  it("선택 칸을 비우면 기본값을 채운다 (메뉴 상관없음, 거리 기본값, 룸·예약 불필요)", () => {
+    const result = parseRecommendRequest({ purpose: "lunch", people: 2, budget: 10000 });
+    expect(result).toEqual({
+      ok: true,
+      request: {
+        purpose: "lunch",
+        people: 2,
+        budget: 10000,
+        cuisines: [],
+        maxWalkMinutes: undefined,
+        needRoom: false,
+        needReservation: false,
+      },
+    });
+  });
+
+  it("도보 거리에 null을 보내면 비운 것으로 본다", () => {
+    const result = parseRecommendRequest({ ...valid, maxWalkMinutes: null });
+    expect(result.ok && result.request.maxWalkMinutes).toBeUndefined();
+  });
+
+  it("점심이면 룸·예약 체크가 남아 있어도 무시한다", () => {
+    const result = parseRecommendRequest({ ...valid, purpose: "lunch" });
+    expect(result.ok && [result.request.needRoom, result.request.needReservation]).toEqual([
+      false,
+      false,
+    ]);
+  });
+
+  it("같은 메뉴를 두 번 보내면 한 번으로 친다", () => {
+    const result = parseRecommendRequest({ ...valid, cuisines: ["한식", "한식", "중식"] });
+    expect(result.ok && result.request.cuisines).toEqual(["한식", "중식"]);
+  });
+});
+
+describe("범위 경계", () => {
+  it("인원 1명·30명은 통과하고 0명·31명은 막는다 (점검표 #2)", () => {
+    expect(parseRecommendRequest({ ...valid, people: 1 }).ok).toBe(true);
+    expect(parseRecommendRequest({ ...valid, people: 30 }).ok).toBe(true);
+    expect(fieldsOf({ ...valid, people: 0 })).toEqual({ people: "1~30명 사이로 입력해 주세요" });
+    expect(fieldsOf({ ...valid, people: 31 }).people).toBeDefined();
+  });
+
+  it("예산 5,000원·200,000원은 통과하고 1,000원은 막는다 (점검표 #6)", () => {
+    expect(parseRecommendRequest({ ...valid, budget: 5000 }).ok).toBe(true);
+    expect(parseRecommendRequest({ ...valid, budget: 200000 }).ok).toBe(true);
+    expect(fieldsOf({ ...valid, budget: 1000 })).toEqual({
+      budget: "5,000~200,000원 사이로 입력해 주세요",
+    });
+  });
+
+  it("도보 거리 1분·15분은 통과하고 0분·16분은 막는다", () => {
+    expect(parseRecommendRequest({ ...valid, maxWalkMinutes: 1 }).ok).toBe(true);
+    expect(parseRecommendRequest({ ...valid, maxWalkMinutes: 15 }).ok).toBe(true);
+    expect(fieldsOf({ ...valid, maxWalkMinutes: 0 }).maxWalkMinutes).toBeDefined();
+    expect(fieldsOf({ ...valid, maxWalkMinutes: 16 }).maxWalkMinutes).toBeDefined();
+  });
+
+  it("소수(2.5명, 7.5분)는 막는다", () => {
+    expect(fieldsOf({ ...valid, people: 2.5, maxWalkMinutes: 7.5 })).toEqual({
+      people: "1~30명 사이로 입력해 주세요",
+      maxWalkMinutes: "도보 거리는 1~15분 사이로 입력해 주세요 (비우면 기본값)",
+    });
+  });
+});
+
+describe("잘못된 값", () => {
+  it("필수 칸(목적·인원·예산)이 비면 칸마다 알려 준다", () => {
+    expect(Object.keys(fieldsOf({})).sort()).toEqual(["budget", "people", "purpose"]);
+  });
+
+  it("숫자 칸에 글자를 넣으면 막는다", () => {
+    expect(fieldsOf({ ...valid, people: "10", budget: "3만원" })).toEqual({
+      people: "1~30명 사이로 입력해 주세요",
+      budget: "5,000~200,000원 사이로 입력해 주세요",
+    });
+  });
+
+  it("정해지지 않은 목적·메뉴를 막는다", () => {
+    expect(fieldsOf({ ...valid, purpose: "breakfast" }).purpose).toContain("점심 약속 또는 팀 회식");
+    expect(fieldsOf({ ...valid, cuisines: ["피자"] }).cuisines).toContain("정해진 메뉴");
+  });
+
+  it("룸·예약 칸에 참/거짓이 아닌 값을 막는다", () => {
+    expect(Object.keys(fieldsOf({ ...valid, needRoom: "yes", needReservation: 1 }))).toEqual([
+      "needRoom",
+      "needReservation",
+    ]);
+  });
+
+  it("정해지지 않은 항목(이름·연락처 등)이 오면 막는다", () => {
+    expect(fieldsOf({ ...valid, name: "홍길동", phone: "010" })).toEqual({
+      form: "정해지지 않은 항목이 들어 있습니다",
+    });
+  });
+
+  it("요청이 객체가 아니면 막는다", () => {
+    expect(fieldsOf("hello").form).toBeDefined();
+    expect(fieldsOf(null).form).toBeDefined();
+    expect(fieldsOf([valid]).form).toBeDefined();
+  });
+});

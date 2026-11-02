@@ -70,3 +70,16 @@ export type FilterConditions = {
   /** 예약 필요 여부 */
   needReservation: boolean;
 };
+
+/** 입력 칸별 허용 범위 — Design §3.2 (서버 검사와 화면 입력 칸이 같은 값을 쓴다) */
+export const INPUT_LIMITS = {
+  people: { min: 1, max: 30 },
+  budget: { min: 5_000, max: 200_000 },
+  maxWalkMinutes: { min: 1, max: MAX_WALK_MINUTES },
+} as const;
+
+/** 추천 요청 (화면 → 서버): 필터 조건 + 메뉴 취향 */
+export type RecommendRequest = FilterConditions & {
+  /** 메뉴 취향. 비어 있으면 "상관없음" (필터가 아니라 AI가 우선해서 고르는 기준) */
+  cuisines: Cuisine[];
+};
