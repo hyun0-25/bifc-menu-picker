@@ -44,3 +44,29 @@ export type Restaurant = {
   /** 예약 가능 여부 */
   reservation: ReservationStatus;
 };
+
+// Design Ref: §3.2 — 입력 조건 중 코드 필터에 쓰는 부분 (메뉴 취향은 "되도록" 기준이라 필터에 넣지 않음)
+
+/** 목적: 점심 약속(lunch) / 팀 회식(dinner) */
+export type Purpose = "lunch" | "dinner";
+
+/** 도보 거리를 입력하지 않았을 때 쓰는 기본값(분) — PRD must ① 규칙 6 */
+export const DEFAULT_WALK_MINUTES: Record<Purpose, number> = {
+  lunch: 10,
+  dinner: 15,
+};
+
+/** 필터 조건 */
+export type FilterConditions = {
+  purpose: Purpose;
+  /** 인원(명) */
+  people: number;
+  /** 1인 예산(원) */
+  budget: number;
+  /** 도보 거리(분). 비우면 목적별 기본값 */
+  maxWalkMinutes?: number;
+  /** 룸(단체석) 필요 여부 */
+  needRoom: boolean;
+  /** 예약 필요 여부 */
+  needReservation: boolean;
+};
