@@ -1,10 +1,55 @@
 "use client";
 
 // Design Ref: §5.1 ②~④·§5.3·§5.4 — 추천 영역 (브라우저에서 동작)
-// 지금 단계(PLAN 작업 17): 목적 선택 + 조건 입력 폼 + 입력 검사. 제출과 결과 표시(작업 18~19)는 이어서 붙인다.
+// 지금 단계(PLAN 작업 18): 목적 선택 + 조건 입력 폼 + 입력 검사 + 제출(API 호출·불러오는 중 표시).
+// 결과 카드(작업 19)와 안내·오류 띠(작업 20)는 이어서 붙인다.
 import { useId, useState, type ChangeEvent, type FormEvent } from "react";
 import { validateFormValues, type FormValues } from "@/lib/schema";
-import { CUISINES, DEFAULT_WALK_MINUTES, INPUT_LIMITS, type Cuisine, type Purpose } from "@/lib/types";
+import {
+  CUISINES,
+  DEFAULT_WALK_MINUTES,
+  INPUT_LIMITS,
+  type Cuisine,
+  type ErrorResponse,
+  type Purpose,
+  type RecommendRequest,
+  type RecommendResponse,
+} from "@/lib/types";
+
+/** 서버가 AI 재요청까지 마치는 데 걸릴 수 있는 시간보다 조금 길게 기다린다 (AI 1회 최대 20초 × 2) */
+const CLIENT_TIMEOUT_MS = 45_000;
+
+type SubmitResult =
+  | { kind: "ok"; data: RecommendResponse }
+  | { kind: "invalid"; fields: Record<string, string> }
+  | { kind: "error"; message: string };
+
+/** 추천 요청을 서버에 보내고, 응답을 화면에서 쓰기 쉬운 모양으로 바꾼다 */
+async function requestRecommendation(request: RecommendRequest): Promise<SubmitResult> {
+  let res: Response;
+  try {
+    res = await fetch("/api/recommend", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(request),
+      signal: AbortSignal.timeout(CLIENT_TIMEOUT_MS),
+    });
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "TimeoutError") {
+      return { kind: "error", message: "추천이 늦어지고 있어요. 잠시 후 다시 시도해 주세요." };
+    }
+    return { kind: "error", message: "서버에 연결하지 못했어요. 인터넷 연결을 확인해 주세요." };
+  }
+
+  try {
+    if (res.ok) return { kind: "ok", data: (await res.json()) as RecommendResponse };
+    const { error } = (await res.json()) as ErrorResponse;
+    if (error.code === "INVALID_INPUT" && error.fields) return { kind: "invalid", fields: error.fields };
+    return { kind: "error", message: error.message };
+  } catch {
+    return { kind: "error", message: "추천을 받지 못했어요. 잠시 후 다시 시도해 주세요." };
+  }
+}
 
 const PURPOSES: { value: Purpose; label: string; hint: string }[] = [
   { value: "lunch", label: "점심 약속", hint: "동료·손님과 가볍게 먹을 곳을 찾아요" },
@@ -34,6 +79,11 @@ const inputError = "border-red-500 focus:border-red-600 dark:border-red-400";
 export default function RecommendForm() {
   const [form, setForm] = useState<FormValues>(EMPTY_FORM);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState(false);
+  /** 마지막으로 받은 추천 결과 (결과 카드는 작업 19에서 그린다) */
+  const [response, setResponse] = useState<RecommendResponse | null>(null);
+  /** 서버·AI 오류 문구 (안내 띠 모양은 작업 20에서 다듬는다) */
+  const [requestError, setRequestError] = useState<string | null>(null);
   const id = useId();
   const current = PURPOSES.find((p) => p.value === form.purpose)!;
   const { people, budget, maxWalkMinutes } = INPUT_LIMITS;
@@ -64,18 +114,32 @@ export default function RecommendForm() {
         : [...form.cuisines, cuisine],
     );
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  /** 칸별 안내를 보여 주고 첫 번째로 틀린 칸에 커서를 옮긴다 (화면 읽기 프로그램도 안내를 바로 읽게) */
+  const showFieldErrors = (fields: Record<string, string>) => {
+    setErrors(fields);
+    const first = NUMBER_FIELDS.find((field) => field in fields);
+    if (first) document.getElementById(`${id}-${first}`)?.focus();
+  };
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const result = validateFormValues(form);
-    if (!result.ok) {
-      setErrors(result.fields);
-      // 첫 번째로 틀린 칸에 커서를 옮겨, 화면 읽기 프로그램도 안내를 바로 읽게 한다
-      const first = NUMBER_FIELDS.find((field) => field in result.fields);
-      if (first) document.getElementById(`${id}-${first}`)?.focus();
+    if (loading) return;
+
+    const checked = validateFormValues(form);
+    if (!checked.ok) {
+      showFieldErrors(checked.fields);
       return;
     }
+
     setErrors({});
-    // 서버 호출(작업 18)을 여기에 붙인다: result.request를 POST /api/recommend로 보낸다.
+    setRequestError(null);
+    setLoading(true);
+    const result = await requestRecommendation(checked.request);
+    setLoading(false);
+
+    if (result.kind === "ok") setResponse(result.data);
+    else if (result.kind === "invalid") showFieldErrors(result.fields);
+    else setRequestError(result.message);
   };
 
   /** 숫자 칸 공통 속성: 틀렸으면 빨간 테두리 + 안내 문구 연결 */
@@ -249,11 +313,36 @@ export default function RecommendForm() {
         {fieldError("form")}
         <button
           type="submit"
-          className="h-12 rounded-xl bg-zinc-900 text-base font-semibold text-white transition-colors hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
+          disabled={loading}
+          aria-busy={loading}
+          className="flex h-12 items-center justify-center gap-2 rounded-xl bg-zinc-900 text-base font-semibold text-white transition-colors hover:bg-zinc-700 disabled:cursor-wait disabled:bg-zinc-500 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300 dark:disabled:bg-zinc-400"
         >
-          추천 받기
+          {loading && (
+            <span
+              aria-hidden="true"
+              className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent"
+            />
+          )}
+          {loading ? "추천 받는 중…" : "추천 받기"}
         </button>
       </form>
+
+      {/* 결과 상태 알림: 화면 읽기 프로그램이 결과·오류를 바로 읽도록 한다. 카드·띠 모양은 작업 19·20에서 만든다. */}
+      <div aria-live="polite" className="text-sm">
+        {requestError && (
+          <p role="alert" className="text-red-600 dark:text-red-400">
+            {requestError}
+          </p>
+        )}
+        {!loading && !requestError && response && (
+          <p className="text-zinc-600 dark:text-zinc-400">
+            {response.recommendations.length > 0
+              ? `추천 ${response.recommendations.length}곳을 받았어요: ${response.recommendations.map((r) => r.name).join(", ")}`
+              : "조건에 맞는 곳이 없어요."}
+            {response.notice && ` (${response.notice})`}
+          </p>
+        )}
+      </div>
     </section>
   );
 }
