@@ -1,9 +1,10 @@
 "use client";
 
 // Design Ref: §5.1 ②~④·§5.3·§5.4 — 추천 영역 (브라우저에서 동작)
-// 지금 단계(PLAN 작업 18): 목적 선택 + 조건 입력 폼 + 입력 검사 + 제출(API 호출·불러오는 중 표시).
-// 결과 카드(작업 19)와 안내·오류 띠(작업 20)는 이어서 붙인다.
+// 지금 단계(PLAN 작업 19): 목적 선택 + 조건 입력 폼 + 입력 검사 + 제출 + 결과 카드.
+// 안내·오류 띠(작업 20)는 이어서 다듬는다.
 import { useId, useState, type ChangeEvent, type FormEvent } from "react";
+import ResultCard from "@/components/ResultCard";
 import { validateFormValues, type FormValues } from "@/lib/schema";
 import {
   CUISINES,
@@ -80,7 +81,7 @@ export default function RecommendForm() {
   const [form, setForm] = useState<FormValues>(EMPTY_FORM);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
-  /** 마지막으로 받은 추천 결과 (결과 카드는 작업 19에서 그린다) */
+  /** 마지막으로 받은 추천 결과 */
   const [response, setResponse] = useState<RecommendResponse | null>(null);
   /** 서버·AI 오류 문구 (안내 띠 모양은 작업 20에서 다듬는다) */
   const [requestError, setRequestError] = useState<string | null>(null);
@@ -327,7 +328,7 @@ export default function RecommendForm() {
         </button>
       </form>
 
-      {/* 결과 상태 알림: 화면 읽기 프로그램이 결과·오류를 바로 읽도록 한다. 카드·띠 모양은 작업 19·20에서 만든다. */}
+      {/* 결과 상태 알림: 화면 읽기 프로그램이 결과·오류를 바로 읽도록 한다. 띠 모양은 작업 20에서 다듬는다. */}
       <div aria-live="polite" className="text-sm">
         {requestError && (
           <p role="alert" className="text-red-600 dark:text-red-400">
@@ -337,12 +338,25 @@ export default function RecommendForm() {
         {!loading && !requestError && response && (
           <p className="text-zinc-600 dark:text-zinc-400">
             {response.recommendations.length > 0
-              ? `추천 ${response.recommendations.length}곳을 받았어요: ${response.recommendations.map((r) => r.name).join(", ")}`
+              ? `추천 ${response.recommendations.length}곳을 골랐어요`
               : "조건에 맞는 곳이 없어요."}
             {response.notice && ` (${response.notice})`}
           </p>
         )}
       </div>
+
+      {/* 결과 카드: 오류가 나면 이전 결과를 숨겨 지금 조건의 결과로 오해하지 않게 한다 */}
+      {!requestError && response && response.recommendations.length > 0 && (
+        <section
+          aria-label="추천 결과"
+          aria-busy={loading}
+          className={`flex flex-col gap-3 transition-opacity ${loading ? "opacity-50" : ""}`}
+        >
+          {response.recommendations.map((r, index) => (
+            <ResultCard key={r.id} rank={index + 1} restaurant={r} />
+          ))}
+        </section>
+      )}
     </section>
   );
 }
