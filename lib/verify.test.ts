@@ -1,8 +1,17 @@
-// PLAN 작업 9·11 점검: AI 답 검사·3곳 채우기·기본 문장·안내 문구 (Design §2.2 처리 9~11, §8.1 V1·V6)
-import { describe, expect, it } from "vitest";
+// PLAN 작업 9·11·12 점검: AI 답 검사·이유 규칙·다시 요청·3곳 채우기·기본 문장·안내 문구 (Design §2.2 처리 9~11, §3.4, §8.1 V1~V6)
+import { describe, expect, it, vi } from "vitest";
 import { filterCandidates } from "./filter";
 import type { AiPick, FilterConditions, Restaurant } from "./types";
-import { checkAiPicks, chooseNotice, defaultReason, fillRecommendations, NOTICES } from "./verify";
+import {
+  checkAiPicks,
+  checkReason,
+  chooseNotice,
+  defaultReason,
+  fillRecommendations,
+  limitSameCuisine,
+  NOTICES,
+  pickWithRetry,
+} from "./verify";
 
 function shop(id: string, overrides: Partial<Restaurant> = {}): Restaurant {
   return {
@@ -172,5 +181,145 @@ describe("checkAiPicks (가짜 AI 답)", () => {
     const { recommendations } = checkAiPicks([{ id: "가짜", reason: "x" }, { id: "b", reason: "이유 b" }], candidates);
     const filled = fillRecommendations(recommendations, candidates, conditions);
     expect(filled.map((r) => r.id)).toEqual(["b", "a", "c"]);
+  });
+});
+
+describe("checkReason (Design §3.4)", () => {
+  const r = shop("a"); // 1인 25,000원, 도보 5분, 최대 20명, 룸 12명
+  const ok = (reason: string, people = 10) => expect(checkReason(reason, r, people)).toEqual([]);
+  const bad = (reason: string, word: string, people = 10) =>
+    expect(checkReason(reason, r, people).join(" / ")).toContain(word);
+
+  it("정해진 표기로 목록 값과 같은 숫자 2개 이상이면 통과", () => {
+    ok("1인 25,000원, 도보 5분");
+    ok("도보 5분, 룸 12명이라 10명 회식에 적합");
+    ok("1인 25,000원, 최대 20명");
+    ok("1인 25,000원, 도보 5분, 12명"); // 꾸밈말 없는 인원은 룸·최대·입력 인원 중 하나면 됨
+  });
+
+  it("V2: 숫자가 목록 값과 다르면 위반 (도보 3분 ↔ 실제 5분)", () => {
+    bad("1인 25,000원, 도보 3분", "도보 시간이 목록 값과 다릅니다");
+    bad("1인 20,000원, 도보 5분", "1인 가격이 목록 값과 다릅니다");
+    bad("도보 5분, 최대 30명", "최대 인원이 목록 값과 다릅니다");
+    bad("도보 5분, 룸 20명", "룸 인원이 목록 값과 다릅니다");
+    bad("도보 5분, 7명", "인원 숫자가");
+  });
+
+  it("V3: 한글 숫자·어림 표현은 위반 (2만 원대, 2만 5천 원)", () => {
+    bad("1인 2만 원대, 도보 5분", "한글 숫자");
+    bad("1인 2만 5천 원, 도보 5분", "한글 숫자");
+  });
+
+  it("쉼표 없는 가격, 정해진 표기 밖 숫자도 위반", () => {
+    bad("1인 25000원, 도보 5분", "1인 가격이 목록 값과 다릅니다");
+    bad("도보 5분, 1인 25,000원, 평점 4.5", "밖의 숫자가 있습니다");
+    bad("도보 5분, 25,000원", "숫자 항목이 2개 이상");
+  });
+
+  it("V4: 50자 초과·여러 줄·숫자 1개·빈 이유는 위반", () => {
+    bad(`1인 25,000원, 도보 5분${"가".repeat(40)}`, "50자를 넘습니다");
+    ok(`1인 25,000원, 도보 5분${"가".repeat(50 - "1인 25,000원, 도보 5분".length)}`); // 정확히 50자는 통과
+    bad("1인 25,000원,\n도보 5분", "한 줄이 아닙니다");
+    bad("도보 5분이라 가까움", "숫자 항목이 2개 이상");
+    bad("", "비어 있습니다");
+  });
+
+  it("코드가 만든 기본 문장은 항상 규칙을 지킨다", () => {
+    for (const s of [shop("x"), shop("y", { pricePerPerson: 200000, walkMinutes: 15, maxCapacity: 999, roomCapacity: 0, hasRoom: false })]) {
+      expect(checkReason(defaultReason(s, conditions), s, conditions.people)).toEqual([]);
+      expect(checkReason(defaultReason(s, { ...conditions, needRoom: true }), s, conditions.people)).toEqual([]);
+    }
+  });
+});
+
+describe("limitSameCuisine", () => {
+  it("V5: 같은 메뉴 3곳이면 AI 순서상 3번째를 뺀다", () => {
+    const recs = ["a", "b", "c"].map((id) => ({ ...shop(id), reason: "x" }));
+    const { recommendations, problems } = limitSameCuisine(recs);
+    expect(recommendations.map((r) => r.id)).toEqual(["a", "b"]);
+    expect(problems).toHaveLength(1);
+  });
+});
+
+describe("pickWithRetry", () => {
+  const candidates = [
+    shop("k1"),
+    shop("k2", { walkMinutes: 6 }),
+    shop("k3", { walkMinutes: 7 }),
+    shop("j1", { cuisine: "중식", walkMinutes: 8, pricePerPerson: 18000 }),
+  ];
+  const good = (id: string) => {
+    const s = candidates.find((c) => c.id === id)!;
+    return { id, reason: defaultReason(s, conditions) };
+  };
+
+  it("첫 답이 규칙을 모두 지키면 다시 요청하지 않는다", async () => {
+    const ask = vi.fn().mockResolvedValue([good("k1"), good("j1"), good("k2")]);
+    const result = await pickWithRetry(ask, candidates, conditions);
+    expect(ask).toHaveBeenCalledTimes(1);
+    expect(result.retried).toBe(false);
+    expect(result.recommendations.map((r) => r.id)).toEqual(["k1", "j1", "k2"]);
+  });
+
+  it("첫 답에 문제가 있으면 문제를 알려 주며 1회 다시 요청하고, 고친 답을 쓴다", async () => {
+    const ask = vi
+      .fn()
+      .mockResolvedValueOnce([{ id: "k1", reason: "도보 3분, 1인 25,000원" }, good("k2"), good("k3")])
+      .mockResolvedValueOnce([good("k1"), good("j1"), good("k2")]);
+    const result = await pickWithRetry(ask, candidates, conditions);
+    expect(ask).toHaveBeenCalledTimes(2);
+    const feedback: string = ask.mock.calls[1][0];
+    expect(feedback).toContain("도보 시간이 목록 값과 다릅니다");
+    expect(feedback).toContain("같은 메뉴(한식)");
+    expect(result.retried).toBe(true);
+    expect(result.recommendations.map((r) => r.id)).toEqual(["k1", "j1", "k2"]);
+    expect(result.problems).toEqual([]);
+  });
+
+  it("다시 요청해도 어기면: 이유는 기본 문장, 같은 메뉴 3번째는 빼고, 빈자리는 후보에서 채운다", async () => {
+    const badAnswer = [
+      { id: "k1", reason: "1인 2만 원대, 맛집" },
+      good("k2"),
+      good("k3"),
+    ];
+    const ask = vi.fn().mockResolvedValue(badAnswer);
+    const result = await pickWithRetry(ask, candidates, conditions);
+    expect(ask).toHaveBeenCalledTimes(2);
+    expect(result.recommendations.map((r) => [r.id, r.reason])).toEqual([
+      ["k1", "1인 25,000원, 도보 5분, 최대 20명"],
+      ["k2", good("k2").reason],
+      ["j1", "1인 18,000원, 도보 8분, 최대 20명"],
+    ]);
+    // 최종 결과는 모든 규칙을 지킨다
+    for (const r of result.recommendations) expect(checkReason(r.reason, r, conditions.people)).toEqual([]);
+  });
+
+  it("지어낸 가게만 고르면 다시 요청 후에도 후보에서 채워 3곳을 만든다", async () => {
+    const ask = vi.fn().mockResolvedValue([{ id: "가짜", reason: "x" }]);
+    const result = await pickWithRetry(ask, candidates, conditions);
+    expect(result.recommendations.map((r) => r.id)).toEqual(["k1", "k2", "j1"]);
+  });
+
+  it("다시 요청이 실패하면 첫 답을 보정해서 쓴다", async () => {
+    const ask = vi
+      .fn()
+      .mockResolvedValueOnce([{ id: "j1", reason: "너무 긴 이유".repeat(10) }, good("k1")])
+      .mockRejectedValueOnce(new Error("AI 실패"));
+    const result = await pickWithRetry(ask, candidates, conditions);
+    expect(result.recommendations.map((r) => r.id)).toEqual(["j1", "k1", "k2"]);
+    expect(result.recommendations[0].reason).toBe("1인 18,000원, 도보 8분, 최대 20명");
+  });
+
+  it("첫 요청이 실패하면 오류를 그대로 던진다 (화면 오류 안내는 API가 맡음)", async () => {
+    const ask = vi.fn().mockRejectedValue(new Error("AI 실패"));
+    await expect(pickWithRetry(ask, candidates, conditions)).rejects.toThrow("AI 실패");
+  });
+
+  it("후보가 2곳이면 2곳을 고른 답에 문제가 없다고 본다", async () => {
+    const two = candidates.slice(2);
+    const ask = vi.fn().mockResolvedValue([good("k3"), good("j1")]);
+    const result = await pickWithRetry(ask, two, conditions);
+    expect(ask).toHaveBeenCalledTimes(1);
+    expect(result.recommendations).toHaveLength(2);
   });
 });
