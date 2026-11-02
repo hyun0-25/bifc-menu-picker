@@ -64,8 +64,14 @@ function describeCondition(q: RecommendRequest): string {
 function conditionViolations(r: Restaurant, q: RecommendRequest): string[] {
   const out: string[] = [];
   if (r.pricePerPerson > q.budget) out.push(`${r.id} 예산 초과`);
-  if (r.maxCapacity < q.people) out.push(`${r.id} 인원 부족`);
-  if (q.needRoom && (!r.hasRoom || r.roomCapacity < q.people)) out.push(`${r.id} 룸 조건 위반`);
+  // 인원: 숫자를 알면 비교, "정보 없음"이면 4명 이하이거나 단체석·룸 표시가 있어야 함 (Design §3.1)
+  if (typeof r.maxCapacity === "number" ? r.maxCapacity < q.people : q.people > 4 && !r.groupSeating && r.hasRoom !== true) {
+    out.push(`${r.id} 인원 조건 위반`);
+  }
+  // 룸: 룸이 확인된 가게만, 룸 인원을 알면 입력 인원 이상
+  if (q.needRoom && (r.hasRoom !== true || (typeof r.roomCapacity === "number" && r.roomCapacity < q.people))) {
+    out.push(`${r.id} 룸 조건 위반`);
+  }
   if (q.needReservation && r.reservation !== "가능") out.push(`${r.id} 예약 조건 위반`);
   if (r.walkMinutes > resolveMaxWalkMinutes(q)) out.push(`${r.id} 거리 초과`);
   return out;

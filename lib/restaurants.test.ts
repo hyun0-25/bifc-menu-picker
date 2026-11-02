@@ -14,6 +14,7 @@ const sample = {
   maxCapacity: 30,
   hasRoom: false,
   roomCapacity: 0,
+  groupSeating: false,
   reservation: "불가",
 };
 
@@ -62,7 +63,7 @@ describe("validateRestaurants", () => {
     const problems = problemsOf([{ ...sample, name: "  " }, withoutRoom]);
     expect(problems).toEqual([
       "1번째 가게(r01): 가게 이름이 비어 있습니다",
-      "2번째 가게(r01): 룸 여부는 true 또는 false여야 합니다",
+      "2번째 가게(r01): 룸 여부는 true, false 또는 \"정보 없음\"이어야 합니다",
     ]);
   });
 
@@ -72,18 +73,42 @@ describe("validateRestaurants", () => {
       "1번째 가게(r01): 룸이 없으면 룸 인원은 0이어야 합니다",
     ]);
     expect(problemsOf([{ ...sample, hasRoom: true, roomCapacity: 0 }])).toEqual([
-      "1번째 가게(r01): 룸이 있으면 룸 인원은 1명 이상이어야 합니다",
+      "1번째 가게(r01): 룸이 있으면 룸 인원은 1명 이상 또는 \"정보 없음\"이어야 합니다",
     ]);
     expect(problemsOf([{ ...sample, hasRoom: true, roomCapacity: 40 }])).toEqual([
       "1번째 가게(r01): 룸 인원은 최대 인원보다 클 수 없습니다",
     ]);
   });
 
-  it("모르는 값을 \"정보 없음\"으로 적으면 막는다 (예약 여부만 허용)", () => {
-    expect(problemsOf([{ ...sample, maxCapacity: "정보 없음" }])).toEqual([
-      "1번째 가게(r01): 최대 인원은 숫자(명)여야 합니다",
-    ]);
+  it("최대 인원·룸·룸 인원·예약은 \"정보 없음\"을 적을 수 있다", () => {
+    expect(validateRestaurants([{ ...sample, maxCapacity: "정보 없음" }]).ok).toBe(true);
     expect(validateRestaurants([{ ...sample, reservation: "정보 없음" }]).ok).toBe(true);
+    expect(validateRestaurants([{ ...sample, hasRoom: "정보 없음", roomCapacity: "정보 없음" }]).ok).toBe(true);
+    expect(validateRestaurants([{ ...sample, hasRoom: true, roomCapacity: "정보 없음" }]).ok).toBe(true);
+    // 룸 인원을 알면 최대 인원이 "정보 없음"이어도 된다
+    expect(validateRestaurants([{ ...sample, maxCapacity: "정보 없음", hasRoom: true, roomCapacity: 12 }]).ok).toBe(true);
+  });
+
+  it("가격·도보 시간은 \"정보 없음\"을 적을 수 없다 (예산·거리 조건에 꼭 필요)", () => {
+    expect(problemsOf([{ ...sample, pricePerPerson: "정보 없음", walkMinutes: "정보 없음" }])).toEqual([
+      "1번째 가게(r01): 1인 가격은 숫자(원)여야 합니다",
+      "1번째 가게(r01): 도보 시간은 숫자(분)여야 합니다",
+    ]);
+  });
+
+  it("\"정보 없음\"끼리 맞지 않거나 잘못 적은 값을 막는다", () => {
+    expect(problemsOf([{ ...sample, hasRoom: "정보 없음", roomCapacity: 0 }])).toEqual([
+      "1번째 가게(r01): 룸 여부가 \"정보 없음\"이면 룸 인원도 \"정보 없음\"이어야 합니다",
+    ]);
+    expect(problemsOf([{ ...sample, maxCapacity: "모름" }])[0]).toContain("최대 인원은 1 이상의 정수(명) 또는");
+    expect(problemsOf([{ ...sample, maxCapacity: 0 }])[0]).toContain("최대 인원은 1 이상의 정수(명) 또는");
+    expect(problemsOf([{ ...sample, groupSeating: "있음" }])).toEqual([
+      "1번째 가게(r01): 단체석 표시 여부는 true 또는 false여야 합니다",
+    ]);
+  });
+
+  it("출처(source)는 적어도 되고 안 적어도 된다", () => {
+    expect(validateRestaurants([{ ...sample, source: "https://place.map.kakao.com/1" }]).ok).toBe(true);
   });
 
   it("오타 난 항목 이름을 막는다", () => {

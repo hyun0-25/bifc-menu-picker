@@ -14,6 +14,7 @@ function shop(id: string, overrides: Partial<Restaurant> = {}): Restaurant {
     maxCapacity: 20,
     hasRoom: false,
     roomCapacity: 0,
+    groupSeating: false,
     reservation: "가능",
     ...overrides,
   };
@@ -140,5 +141,36 @@ describe("filterCandidates", () => {
     const before = list.map((r) => r.id);
     filterCandidates(list, lunch);
     expect(list.map((r) => r.id)).toEqual(before);
+  });
+});
+
+describe("\"정보 없음\" 처리 (Design §3.1)", () => {
+  const unknownCap = { maxCapacity: "정보 없음" as const };
+
+  it("최대 인원을 모르면 4명까지는 통과, 5명부터는 뺀다", () => {
+    expect(matchesConditions(shop("a", unknownCap), { ...lunch, people: 4 })).toBe(true);
+    expect(matchesConditions(shop("b", unknownCap), { ...dinner, people: 5 })).toBe(false);
+  });
+
+  it("최대 인원을 몰라도 단체석·룸 표시가 있으면 5명 이상도 통과", () => {
+    expect(matchesConditions(shop("a", { ...unknownCap, groupSeating: true }), { ...dinner, people: 20 })).toBe(true);
+    const room = { ...unknownCap, hasRoom: true as const, roomCapacity: "정보 없음" as const };
+    expect(matchesConditions(shop("b", room), { ...dinner, people: 12 })).toBe(true);
+  });
+
+  it("룸이 필요하면 룸이 확인된 가게만 통과 (룸 여부 '정보 없음'은 뺀다)", () => {
+    const conditions = { ...dinner, people: 10, needRoom: true };
+    const unknownRoom = { hasRoom: "정보 없음" as const, roomCapacity: "정보 없음" as const, groupSeating: true };
+    expect(matchesConditions(shop("a", unknownRoom), conditions)).toBe(false);
+  });
+
+  it("룸이 확인됐지만 룸 인원을 모르면 통과, 룸 인원을 알면 숫자로 비교", () => {
+    const conditions = { ...dinner, people: 10, needRoom: true };
+    expect(matchesConditions(shop("a", { hasRoom: true, roomCapacity: "정보 없음" }), conditions)).toBe(true);
+    expect(matchesConditions(shop("b", { hasRoom: true, roomCapacity: 8 }), conditions)).toBe(false);
+  });
+
+  it("최대 인원을 알면 단체석 표시와 관계없이 숫자로 비교한다", () => {
+    expect(matchesConditions(shop("a", { maxCapacity: 6, groupSeating: true }), { ...dinner, people: 8 })).toBe(false);
   });
 });

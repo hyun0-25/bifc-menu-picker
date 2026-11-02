@@ -23,6 +23,7 @@ function shop(id: string, overrides: Partial<Restaurant> = {}): Restaurant {
     maxCapacity: 20,
     hasRoom: true,
     roomCapacity: 12,
+    groupSeating: true,
     reservation: "가능",
     ...overrides,
   };
@@ -321,5 +322,26 @@ describe("pickWithRetry", () => {
     const result = await pickWithRetry(ask, two, conditions);
     expect(ask).toHaveBeenCalledTimes(1);
     expect(result.recommendations).toHaveLength(2);
+  });
+});
+
+describe("\"정보 없음\" 가게의 기본 문장·이유 검사", () => {
+  const unknown = shop("u", { maxCapacity: "정보 없음", hasRoom: true, roomCapacity: "정보 없음", groupSeating: true });
+
+  it("인원 숫자 대신 확인된 표시를 쓴다", () => {
+    expect(defaultReason(unknown, conditions)).toBe("1인 25,000원, 도보 5분, 단체석 있음");
+    expect(defaultReason(unknown, { ...conditions, needRoom: true })).toBe("1인 25,000원, 도보 5분, 룸 있음");
+    const plain = shop("p", { maxCapacity: "정보 없음", hasRoom: "정보 없음", roomCapacity: "정보 없음", groupSeating: false });
+    expect(defaultReason(plain, conditions)).toBe("1인 25,000원, 도보 5분");
+  });
+
+  it("기본 문장은 '정보 없음' 가게에서도 이유 규칙을 지킨다", () => {
+    expect(checkReason(defaultReason(unknown, conditions), unknown, conditions.people)).toEqual([]);
+  });
+
+  it("AI가 모르는 인원을 숫자로 지어내면 위반", () => {
+    expect(checkReason("1인 25,000원, 도보 5분, 최대 30명", unknown, 10).join()).toContain("최대 인원이 목록 값과 다릅니다");
+    expect(checkReason("1인 25,000원, 도보 5분, 룸 12명", unknown, 10).join()).toContain("룸 인원이 목록 값과 다릅니다");
+    expect(checkReason("1인 25,000원, 도보 5분, 10명 회식", unknown, 10)).toEqual([]); // 입력 인원은 괜찮음
   });
 });

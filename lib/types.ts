@@ -23,6 +23,16 @@ export type ReservationStatus = (typeof RESERVATION_STATUSES)[number];
 /** 도보 시간 상한(분): BIFC 본사에서 15분 넘게 걸리는 가게는 목록에 넣지 않는다. */
 export const MAX_WALK_MINUTES = 15;
 
+/** 확인하지 못한 값. 짐작해서 숫자를 적지 않고 이 값을 적는다 (Design §3.1). */
+export const UNKNOWN = "정보 없음";
+export type Unknown = typeof UNKNOWN;
+
+/**
+ * 최대 인원이 "정보 없음"일 때도 받아들일 수 있다고 보는 인원 상한.
+ * 식당이면 이 정도는 앉을 수 있다고 보고, 이보다 많으면 단체석·룸 표시가 있어야 후보가 된다.
+ */
+export const SMALL_GROUP_LIMIT = 4;
+
 /** 식당 한 곳 */
 export type Restaurant = {
   /** 고유 번호, 예: "r01" (겹치지 않게) */
@@ -35,14 +45,18 @@ export type Restaurant = {
   pricePerPerson: number;
   /** BIFC 본사에서 걸어서 걸리는 시간(분), 1~15 */
   walkMinutes: number;
-  /** 한 번에 받을 수 있는 최대 인원(명) */
-  maxCapacity: number;
-  /** 룸·단체석 여부 */
-  hasRoom: boolean;
-  /** 룸 하나에 앉을 수 있는 최대 인원(명). 룸이 없으면 0 */
-  roomCapacity: number;
+  /** 한 번에 받을 수 있는 최대 인원(명). 모르면 "정보 없음" */
+  maxCapacity: number | Unknown;
+  /** 룸(프라이빗룸) 여부. 룸 표시가 없어 확인하지 못했으면 "정보 없음" */
+  hasRoom: boolean | Unknown;
+  /** 룸 하나에 앉을 수 있는 최대 인원(명). 룸이 없으면 0, 모르면 "정보 없음" */
+  roomCapacity: number | Unknown;
+  /** 단체석 표시 여부 (카카오맵 등에 "단체석"이 표시되어 있으면 true) */
+  groupSeating: boolean;
   /** 예약 가능 여부 */
   reservation: ReservationStatus;
+  /** 정보 출처 (예: 카카오맵 장소 주소). 화면에는 쓰지 않는다. */
+  source?: string;
 };
 
 // Design Ref: §3.2 — 입력 조건 중 코드 필터에 쓰는 부분 (메뉴 취향은 "되도록" 기준이라 필터에 넣지 않음)

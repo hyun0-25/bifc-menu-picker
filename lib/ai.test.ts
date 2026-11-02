@@ -21,8 +21,8 @@ const request: RecommendRequest = {
 };
 
 const candidates: Restaurant[] = [
-  { id: "s1", name: "시험 국밥", cuisine: "한식", pricePerPerson: 11000, walkMinutes: 5, maxCapacity: 30, hasRoom: true, roomCapacity: 12, reservation: "불가" },
-  { id: "s2", name: "시험 중식", cuisine: "중식", pricePerPerson: 25000, walkMinutes: 8, maxCapacity: 20, hasRoom: true, roomCapacity: 12, reservation: "가능" },
+  { id: "s1", name: "시험 국밥", cuisine: "한식", pricePerPerson: 11000, walkMinutes: 5, maxCapacity: 30, hasRoom: true, roomCapacity: 12, groupSeating: true, reservation: "불가" },
+  { id: "s2", name: "시험 중식", cuisine: "중식", pricePerPerson: 25000, walkMinutes: 8, maxCapacity: 20, hasRoom: true, roomCapacity: 12, groupSeating: true, reservation: "가능" },
 ];
 
 /** 정해 둔 답(content)을 돌려주는 가짜 AI 연결 */

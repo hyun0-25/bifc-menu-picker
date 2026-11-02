@@ -18,9 +18,9 @@ vi.mock("@/lib/ai", async (importOriginal) => ({
 }));
 
 const shops: Restaurant[] = [
-  { id: "s1", name: "시험 국밥", cuisine: "한식", pricePerPerson: 11000, walkMinutes: 5, maxCapacity: 30, hasRoom: false, roomCapacity: 0, reservation: "불가" },
-  { id: "s2", name: "시험 중식", cuisine: "중식", pricePerPerson: 25000, walkMinutes: 8, maxCapacity: 20, hasRoom: true, roomCapacity: 12, reservation: "가능" },
-  { id: "s3", name: "시험 스시", cuisine: "일식", pricePerPerson: 18000, walkMinutes: 12, maxCapacity: 8, hasRoom: false, roomCapacity: 0, reservation: "정보 없음" },
+  { id: "s1", name: "시험 국밥", cuisine: "한식", pricePerPerson: 11000, walkMinutes: 5, maxCapacity: 30, hasRoom: false, roomCapacity: 0, groupSeating: false, reservation: "불가" },
+  { id: "s2", name: "시험 중식", cuisine: "중식", pricePerPerson: 25000, walkMinutes: 8, maxCapacity: 20, hasRoom: true, roomCapacity: 12, groupSeating: true, reservation: "가능" },
+  { id: "s3", name: "시험 스시", cuisine: "일식", pricePerPerson: 18000, walkMinutes: 12, maxCapacity: 8, hasRoom: false, roomCapacity: 0, groupSeating: false, reservation: "정보 없음" },
 ];
 
 /** AI가 후보를 받은 순서 그대로, 규칙에 맞는 이유로 고른다고 가정하는 가짜 답 */

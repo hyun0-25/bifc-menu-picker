@@ -8,6 +8,7 @@
     "maxCapacity": 30,
     "hasRoom": false,
     "roomCapacity": 0,
+    "groupSeating": false,
     "reservation": "불가"
   },
   {
@@ -19,6 +20,7 @@
     "maxCapacity": 20,
     "hasRoom": true,
     "roomCapacity": 12,
+    "groupSeating": true,
     "reservation": "가능"
   },
   {
@@ -30,6 +32,7 @@
     "maxCapacity": 8,
     "hasRoom": false,
     "roomCapacity": 0,
+    "groupSeating": false,
     "reservation": "정보 없음"
   }
 ]

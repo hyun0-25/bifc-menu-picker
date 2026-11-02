@@ -1,14 +1,24 @@
-// Design Ref: §3.1 — 식당 목록 파일의 형식 검사 규칙 (모르는 값은 허용하지 않음, 예약 여부만 "정보 없음" 가능)
+// Design Ref: §3.1 — 식당 목록 파일의 형식 검사 규칙
+// 가격·도보 시간은 반드시 숫자. 최대 인원·룸 여부·룸 인원·예약 여부는 확인하지 못했으면 "정보 없음"을 적을 수 있다.
 // Design Ref: §3.2·§4 — 추천 요청(입력 조건) 검사 규칙
-// AI 답 검사 규칙은 이후 작업(PLAN 11)에서 이 파일에 추가한다.
 import { z } from "zod";
 import {
   CUISINES,
   INPUT_LIMITS,
   MAX_WALK_MINUTES,
   RESERVATION_STATUSES,
+  UNKNOWN,
   type RecommendRequest,
 } from "./types";
+
+/** 숫자(min 이상 정수) 또는 "정보 없음" */
+function intOrUnknown(min: number, message: string) {
+  const number = z
+    .number({ error: message })
+    .int({ error: message })
+    .min(min, { error: message });
+  return z.union([z.literal(UNKNOWN), number], { error: message });
+}
 
 /** 식당 한 곳의 검사 규칙 (lib/types.ts의 Restaurant와 같은 모양) */
 export const restaurantSchema = z.strictObject(
@@ -35,31 +45,38 @@ export const restaurantSchema = z.strictObject(
       .max(MAX_WALK_MINUTES, {
         error: `도보 시간은 ${MAX_WALK_MINUTES}분 이하여야 합니다 (그보다 먼 가게는 목록에 넣지 않음)`,
       }),
-    maxCapacity: z
-      .number({ error: "최대 인원은 숫자(명)여야 합니다" })
-      .int({ error: "최대 인원은 정수(명)여야 합니다" })
-      .positive({ error: "최대 인원은 1명 이상이어야 합니다" }),
-    hasRoom: z.boolean({ error: "룸 여부는 true 또는 false여야 합니다" }),
-    roomCapacity: z
-      .number({ error: "룸 인원은 숫자(명)여야 합니다 (룸이 없으면 0)" })
-      .int({ error: "룸 인원은 정수(명)여야 합니다" })
-      .min(0, { error: "룸 인원은 0 이상이어야 합니다" }),
+    maxCapacity: intOrUnknown(1, `최대 인원은 1 이상의 정수(명) 또는 "${UNKNOWN}"이어야 합니다`),
+    hasRoom: z.union([z.boolean(), z.literal(UNKNOWN)], {
+      error: `룸 여부는 true, false 또는 "${UNKNOWN}"이어야 합니다`,
+    }),
+    roomCapacity: intOrUnknown(
+      0,
+      `룸 인원은 0 이상의 정수(명) 또는 "${UNKNOWN}"이어야 합니다 (룸이 없으면 0)`,
+    ),
+    groupSeating: z.boolean({ error: "단체석 표시 여부는 true 또는 false여야 합니다" }),
     reservation: z.enum(RESERVATION_STATUSES, {
       error: `예약 여부는 ${RESERVATION_STATUSES.join("·")} 중 하나여야 합니다`,
     }),
+    source: z.string({ error: "출처는 글자(주소)여야 합니다" }).optional(),
   },
   { error: "정해지지 않은 항목이 들어 있습니다 (오타인지 확인)" },
 )
   // 항목끼리 서로 맞는지 검사: 룸 여부와 룸 인원, 룸 인원과 최대 인원
   .superRefine((r, ctx) => {
-    if (!r.hasRoom && r.roomCapacity !== 0) {
-      ctx.addIssue({ code: "custom", message: "룸이 없으면 룸 인원은 0이어야 합니다" });
+    const issue = (message: string) => ctx.addIssue({ code: "custom", message });
+    if (r.hasRoom === false && r.roomCapacity !== 0) issue("룸이 없으면 룸 인원은 0이어야 합니다");
+    if (r.hasRoom === true && r.roomCapacity === 0) {
+      issue(`룸이 있으면 룸 인원은 1명 이상 또는 "${UNKNOWN}"이어야 합니다`);
     }
-    if (r.hasRoom && r.roomCapacity < 1) {
-      ctx.addIssue({ code: "custom", message: "룸이 있으면 룸 인원은 1명 이상이어야 합니다" });
+    if (r.hasRoom === UNKNOWN && r.roomCapacity !== UNKNOWN) {
+      issue(`룸 여부가 "${UNKNOWN}"이면 룸 인원도 "${UNKNOWN}"이어야 합니다`);
     }
-    if (r.roomCapacity > r.maxCapacity) {
-      ctx.addIssue({ code: "custom", message: "룸 인원은 최대 인원보다 클 수 없습니다" });
+    if (
+      typeof r.roomCapacity === "number" &&
+      typeof r.maxCapacity === "number" &&
+      r.roomCapacity > r.maxCapacity
+    ) {
+      issue("룸 인원은 최대 인원보다 클 수 없습니다");
     }
   });
 

@@ -1,6 +1,13 @@
 // Design Ref: §2.2 처리 9~11 — AI 답 검사와 추천 결과 마무리 (후보 대조·값 덮어쓰기·3곳 채우기·기본 문장·안내 문구)
 // AI 호출 자체는 lib/ai.ts가 맡고, 이 파일은 AI 답을 받아 검사·보정만 한다 (서버 전용 코드에 의존하지 않음).
-import type { AiPick, Cuisine, FilterConditions, Recommendation, Restaurant } from "./types";
+import {
+  UNKNOWN,
+  type AiPick,
+  type Cuisine,
+  type FilterConditions,
+  type Recommendation,
+  type Restaurant,
+} from "./types";
 
 /** 추천 개수 */
 export const RECOMMEND_COUNT = 3;
@@ -17,14 +24,21 @@ export const NOTICES = {
 /**
  * 코드가 만드는 기본 추천 이유. 목록 값만 쓰므로 이유 규칙(50자, 숫자 2개 이상, 값 일치)을 항상 지킨다.
  * 예: "1인 25,000원, 도보 5분, 최대 20명" / 룸이 필요하면 "1인 25,000원, 도보 5분, 룸 12명"
+ * 인원이 "정보 없음"이면 숫자 대신 확인된 표시를 쓴다: "룸 있음" / "단체석 있음" (없으면 생략)
  */
 export function defaultReason(restaurant: Restaurant, conditions: FilterConditions): string {
-  const price = `1인 ${restaurant.pricePerPerson.toLocaleString("ko-KR")}원`;
-  const walk = `도보 ${restaurant.walkMinutes}분`;
-  const capacity = conditions.needRoom
-    ? `룸 ${restaurant.roomCapacity}명`
-    : `최대 ${restaurant.maxCapacity}명`;
-  return `${price}, ${walk}, ${capacity}`;
+  const parts = [
+    `1인 ${restaurant.pricePerPerson.toLocaleString("ko-KR")}원`,
+    `도보 ${restaurant.walkMinutes}분`,
+  ];
+  if (conditions.needRoom) {
+    parts.push(restaurant.roomCapacity === UNKNOWN ? "룸 있음" : `룸 ${restaurant.roomCapacity}명`);
+  } else if (restaurant.maxCapacity !== UNKNOWN) {
+    parts.push(`최대 ${restaurant.maxCapacity}명`);
+  } else if (restaurant.groupSeating) {
+    parts.push("단체석 있음");
+  }
+  return parts.join(", ");
 }
 
 /**

@@ -1,6 +1,6 @@
 // Design Ref: §5.1 ⑥·§5.3 — 결과 카드: 가게 한 곳의 추천 이유와 목록 값
 // 숫자는 모두 서버가 목록 파일 값으로 채운 것이다 (PRD must ② 규칙 3: 값을 바꾸거나 짐작하지 않음).
-import type { Recommendation, ReservationStatus } from "@/lib/types";
+import { UNKNOWN, type Recommendation, type ReservationStatus } from "@/lib/types";
 
 const RESERVATION_LABEL: Record<ReservationStatus, string> = {
   가능: "예약 가능",
@@ -18,8 +18,19 @@ export default function ResultCard({ rank, restaurant: r }: Props) {
   const details = [
     { label: "1인 가격", value: `${r.pricePerPerson.toLocaleString("ko-KR")}원` },
     { label: "도보", value: `${r.walkMinutes}분` },
-    { label: "최대 인원", value: `${r.maxCapacity}명` },
-    { label: "룸", value: r.hasRoom ? `${r.roomCapacity}명` : "없음" },
+    { label: "최대 인원", value: r.maxCapacity === UNKNOWN ? UNKNOWN : `${r.maxCapacity}명` },
+    { label: "단체석", value: r.groupSeating ? "있음" : "표시 없음" },
+    {
+      label: "룸",
+      value:
+        r.hasRoom === UNKNOWN
+          ? UNKNOWN
+          : !r.hasRoom
+            ? "없음"
+            : r.roomCapacity === UNKNOWN
+              ? "있음 (인원 정보 없음)"
+              : `${r.roomCapacity}명`,
+    },
     { label: "예약", value: RESERVATION_LABEL[r.reservation] },
   ];
 
@@ -44,7 +55,7 @@ export default function ResultCard({ rank, restaurant: r }: Props) {
 
       <p className="font-semibold break-keep text-zinc-900 [overflow-wrap:anywhere] dark:text-zinc-50">{r.reason}</p>
 
-      <dl className="grid grid-cols-3 gap-x-3 gap-y-2 text-sm sm:grid-cols-5">
+      <dl className="grid grid-cols-3 gap-x-3 gap-y-2 text-sm">
         {details.map((d) => (
           <div key={d.label} className="flex flex-col">
             <dt className="text-xs text-zinc-500 dark:text-zinc-400">{d.label}</dt>
