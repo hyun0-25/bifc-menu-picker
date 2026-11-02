@@ -1,0 +1,32 @@
+[
+  {
+    "id": "r01",
+    "name": "(예시) 문현 국밥집",
+    "cuisine": "한식",
+    "pricePerPerson": 11000,
+    "walkMinutes": 5,
+    "maxCapacity": 30,
+    "hasRoom": false,
+    "reservation": "불가"
+  },
+  {
+    "id": "r02",
+    "name": "(예시) BIFC 중화요리",
+    "cuisine": "중식",
+    "pricePerPerson": 25000,
+    "walkMinutes": 8,
+    "maxCapacity": 20,
+    "hasRoom": true,
+    "reservation": "가능"
+  },
+  {
+    "id": "r03",
+    "name": "(예시) 문현 스시",
+    "cuisine": "일식",
+    "pricePerPerson": 18000,
+    "walkMinutes": 12,
+    "maxCapacity": 8,
+    "hasRoom": false,
+    "reservation": "정보 없음"
+  }
+]
