@@ -1,6 +1,6 @@
-// Design Ref: §2.2 처리 9~11 — 추천 결과 마무리 (3곳 채우기·기본 문장·안내 문구)
-// AI 답 검사(후보 id 대조, 이유 규칙 검사)는 PLAN 작업 11·12에서 이 파일에 추가한다.
-import type { Cuisine, FilterConditions, Recommendation, Restaurant } from "./types";
+// Design Ref: §2.2 처리 9~11 — AI 답 검사와 추천 결과 마무리 (후보 대조·값 덮어쓰기·3곳 채우기·기본 문장·안내 문구)
+// 이유 규칙 검사(50자·숫자)는 PLAN 작업 12에서 이 파일에 추가한다.
+import type { AiPick, Cuisine, FilterConditions, Recommendation, Restaurant } from "./types";
 
 /** 추천 개수 */
 export const RECOMMEND_COUNT = 3;
@@ -63,4 +63,46 @@ export function chooseNotice(candidateCount: number, resultCount: number): strin
   if (candidateCount < RECOMMEND_COUNT) return NOTICES.fewCandidates;
   if (resultCount < RECOMMEND_COUNT) return NOTICES.cuisineLimited;
   return undefined;
+}
+
+// ── AI 답 검사 (PLAN 작업 11) ──────────────────────────────────────
+
+export type CheckedPicks = {
+  /** 검사를 통과한 가게. 이유만 AI 글이고 나머지 값은 모두 목록(후보) 값이다. */
+  recommendations: Recommendation[];
+  /** 빼낸 이유 (서버 기록·다시 요청할 때 쓴다). 화면에는 보여 주지 않는다. */
+  problems: string[];
+};
+
+/**
+ * AI 답을 걸러진 후보와 대조한다 (Design §2.2 처리 9, Plan SC: SC-2·SC-3).
+ * - 후보 id에 없는 가게는 뺀다. 전체 목록에는 있어도 조건에서 걸러진 가게라면 통과시키지 않는다.
+ * - 같은 가게를 두 번 고르면 처음 것만 남긴다.
+ * - 이름·메뉴·가격·도보·인원·룸·예약 값은 AI 답이 아니라 후보 값으로 채운다. AI가 덧붙인 값은 버린다.
+ * - 3곳보다 많이 골랐으면 앞의 3곳만 남긴다.
+ */
+export function checkAiPicks(picks: readonly AiPick[], candidates: readonly Restaurant[]): CheckedPicks {
+  const byId = new Map(candidates.map((r) => [r.id, r]));
+  const recommendations: Recommendation[] = [];
+  const problems: string[] = [];
+  const used = new Set<string>();
+
+  for (const pick of picks) {
+    const candidate = byId.get(pick.id);
+    if (!candidate) {
+      problems.push(`후보에 없는 가게를 골랐습니다: ${pick.id}`);
+      continue;
+    }
+    if (used.has(pick.id)) {
+      problems.push(`같은 가게를 두 번 골랐습니다: ${pick.id}`);
+      continue;
+    }
+    if (recommendations.length >= RECOMMEND_COUNT) {
+      problems.push(`${RECOMMEND_COUNT}곳보다 많이 골랐습니다: ${pick.id}`);
+      continue;
+    }
+    used.add(pick.id);
+    recommendations.push({ ...candidate, reason: pick.reason.trim() });
+  }
+  return { recommendations, problems };
 }

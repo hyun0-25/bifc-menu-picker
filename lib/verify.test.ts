@@ -1,7 +1,8 @@
-// PLAN 작업 9 점검: 3곳 채우기·기본 문장·안내 문구 (Design §2.2 처리 10·11)
+// PLAN 작업 9·11 점검: AI 답 검사·3곳 채우기·기본 문장·안내 문구 (Design §2.2 처리 9~11, §8.1 V1·V6)
 import { describe, expect, it } from "vitest";
-import type { FilterConditions, Restaurant } from "./types";
-import { chooseNotice, defaultReason, fillRecommendations, NOTICES } from "./verify";
+import { filterCandidates } from "./filter";
+import type { AiPick, FilterConditions, Restaurant } from "./types";
+import { checkAiPicks, chooseNotice, defaultReason, fillRecommendations, NOTICES } from "./verify";
 
 function shop(id: string, overrides: Partial<Restaurant> = {}): Restaurant {
   return {
@@ -88,5 +89,88 @@ describe("chooseNotice", () => {
 
   it("3곳 다 채움: 안내 없음", () => {
     expect(chooseNotice(5, 3)).toBeUndefined();
+  });
+});
+
+describe("checkAiPicks (가짜 AI 답)", () => {
+  const candidates = [shop("a"), shop("b", { cuisine: "중식" }), shop("c", { cuisine: "일식" }), shop("d")];
+
+  it("올바른 답은 AI가 매긴 순서 그대로, 이유를 붙여 통과시킨다", () => {
+    const picks: AiPick[] = [
+      { id: "c", reason: "이유 c" },
+      { id: "a", reason: "이유 a" },
+      { id: "b", reason: "이유 b" },
+    ];
+    const { recommendations, problems } = checkAiPicks(picks, candidates);
+    expect(recommendations.map((r) => [r.id, r.reason])).toEqual([
+      ["c", "이유 c"],
+      ["a", "이유 a"],
+      ["b", "이유 b"],
+    ]);
+    expect(problems).toEqual([]);
+  });
+
+  it("V1: 목록에는 있지만 조건에서 걸러진 가게(예산 초과)를 고르면 뺀다", () => {
+    const list = [shop("cheap"), shop("expensive", { pricePerPerson: 50000 })];
+    const filtered = filterCandidates(list, conditions); // 예산 30,000원 → expensive 제외
+    const { recommendations, problems } = checkAiPicks(
+      [
+        { id: "expensive", reason: "비싸지만 맛있음" },
+        { id: "cheap", reason: "가성비" },
+      ],
+      filtered,
+    );
+    expect(recommendations.map((r) => r.id)).toEqual(["cheap"]);
+    expect(problems).toEqual(["후보에 없는 가게를 골랐습니다: expensive"]);
+  });
+
+  it("목록 어디에도 없는 지어낸 가게를 뺀다", () => {
+    const { recommendations, problems } = checkAiPicks([{ id: "가짜맛집", reason: "최고" }], candidates);
+    expect(recommendations).toEqual([]);
+    expect(problems).toHaveLength(1);
+  });
+
+  it("V6: AI가 값을 바꿔 보내도 화면 값은 후보(목록) 값이다", () => {
+    const tampered = {
+      id: "a",
+      reason: "이유",
+      name: "바뀐 이름",
+      pricePerPerson: 1000,
+      walkMinutes: 1,
+      maxCapacity: 999,
+      reservation: "가능",
+    } as AiPick;
+    const [result] = checkAiPicks([tampered], candidates).recommendations;
+    expect(result).toEqual({ ...shop("a"), reason: "이유" });
+  });
+
+  it("같은 가게를 두 번 고르면 처음 것만 남긴다", () => {
+    const { recommendations, problems } = checkAiPicks(
+      [
+        { id: "a", reason: "첫 번째" },
+        { id: "a", reason: "두 번째" },
+      ],
+      candidates,
+    );
+    expect(recommendations.map((r) => r.reason)).toEqual(["첫 번째"]);
+    expect(problems).toEqual(["같은 가게를 두 번 골랐습니다: a"]);
+  });
+
+  it("3곳보다 많이 고르면 앞의 3곳만 남긴다", () => {
+    const picks = ["a", "b", "c", "d"].map((id) => ({ id, reason: `이유 ${id}` }));
+    const { recommendations, problems } = checkAiPicks(picks, candidates);
+    expect(recommendations.map((r) => r.id)).toEqual(["a", "b", "c"]);
+    expect(problems).toEqual(["3곳보다 많이 골랐습니다: d"]);
+  });
+
+  it("이유 앞뒤 공백을 지운다", () => {
+    const [result] = checkAiPicks([{ id: "a", reason: "  이유 \n" }], candidates).recommendations;
+    expect(result.reason).toBe("이유");
+  });
+
+  it("검사 후 모자라면 fillRecommendations로 후보에서 채울 수 있다 (V1 이어서)", () => {
+    const { recommendations } = checkAiPicks([{ id: "가짜", reason: "x" }, { id: "b", reason: "이유 b" }], candidates);
+    const filled = fillRecommendations(recommendations, candidates, conditions);
+    expect(filled.map((r) => r.id)).toEqual(["b", "a", "c"]);
   });
 });

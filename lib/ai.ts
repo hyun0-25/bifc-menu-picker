@@ -4,7 +4,7 @@ import "server-only";
 import OpenAI from "openai";
 import { z } from "zod";
 import { resolveMaxWalkMinutes } from "./filter";
-import type { RecommendRequest, Restaurant } from "./types";
+import type { AiPick, RecommendRequest, Restaurant } from "./types";
 import { MAX_SAME_CUISINE, RECOMMEND_COUNT } from "./verify";
 
 /** OPENAI_MODEL이 비어 있을 때 쓰는 기본 모델 (가볍고 저렴한 모델) */
@@ -58,9 +58,6 @@ export class AiError extends Error {
     this.name = "AiError";
   }
 }
-
-/** AI가 돌려주는 답 하나: 고른 가게 id와 이유 (나머지 값은 코드가 목록에서 채운다) */
-export type AiPick = { id: string; reason: string };
 
 const aiAnswerSchema = z.object({
   picks: z.array(z.object({ id: z.string(), reason: z.string() })),

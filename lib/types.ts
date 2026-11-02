@@ -84,6 +84,9 @@ export type RecommendRequest = FilterConditions & {
   cuisines: Cuisine[];
 };
 
+/** AI 답 하나: 고른 가게 id와 이유 (나머지 값은 코드가 목록에서 채운다) */
+export type AiPick = { id: string; reason: string };
+
 // Design Ref: §3.3·§4 — 서버 → 화면 응답
 
 /** 추천 결과 한 곳: 목록 값 그대로 + 추천 이유 */
