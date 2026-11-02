@@ -139,3 +139,48 @@ export function parseRecommendRequest(body: unknown): RequestValidationResult {
   }
   return { ok: false, fields };
 }
+
+// ── 화면 입력 검사 (PLAN 작업 17) ───────────────────────────────────
+
+/** 화면 입력 칸의 값. 숫자 칸은 비워 둘 수 있도록 글자로 보관한다. */
+export type FormValues = {
+  purpose: RecommendRequest["purpose"];
+  people: string;
+  budget: string;
+  cuisines: RecommendRequest["cuisines"];
+  maxWalkMinutes: string;
+  needRoom: boolean;
+  needReservation: boolean;
+};
+
+/** 비어 있으면 안 되는 칸의 안내 */
+const REQUIRED_MESSAGES = {
+  people: "인원을 입력해 주세요",
+  budget: "1인 예산을 입력해 주세요",
+} as const;
+
+/**
+ * 화면 입력값을 서버에 보낼 요청으로 바꾸고, 서버와 같은 규칙으로 미리 검사한다.
+ * 빈 필수 칸은 "입력해 주세요", 그 밖의 문제는 서버 검사와 같은 문구를 돌려준다.
+ */
+export function validateFormValues(values: FormValues): RequestValidationResult {
+  const toNumber = (text: string) => (text.trim() === "" ? undefined : Number(text));
+  const body = {
+    purpose: values.purpose,
+    people: toNumber(values.people),
+    budget: toNumber(values.budget),
+    cuisines: values.cuisines,
+    maxWalkMinutes: toNumber(values.maxWalkMinutes),
+    needRoom: values.needRoom,
+    needReservation: values.needReservation,
+  };
+
+  const result = parseRecommendRequest(body);
+  if (result.ok) return result;
+
+  const fields = { ...result.fields };
+  for (const key of Object.keys(REQUIRED_MESSAGES) as (keyof typeof REQUIRED_MESSAGES)[]) {
+    if (body[key] === undefined) fields[key] = REQUIRED_MESSAGES[key];
+  }
+  return { ok: false, fields };
+}

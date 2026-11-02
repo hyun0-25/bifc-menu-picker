@@ -1,6 +1,6 @@
-// PLAN 작업 8 점검: 서버가 받는 입력 조건을 범위·선택지대로 검사하는지 확인한다 (Design §3.2, §8.1 #2·#6)
+// PLAN 작업 8·17 점검: 서버와 화면이 입력 조건을 범위·선택지대로 검사하는지 확인한다 (Design §3.2, §8.1 #2·#6)
 import { describe, expect, it } from "vitest";
-import { parseRecommendRequest } from "./schema";
+import { parseRecommendRequest, validateFormValues, type FormValues } from "./schema";
 
 const valid = {
   purpose: "dinner",
@@ -124,5 +124,60 @@ describe("잘못된 값", () => {
     expect(fieldsOf("hello").form).toBeDefined();
     expect(fieldsOf(null).form).toBeDefined();
     expect(fieldsOf([valid]).form).toBeDefined();
+  });
+});
+
+describe("validateFormValues (화면 입력)", () => {
+  const form: FormValues = {
+    purpose: "dinner",
+    people: "12",
+    budget: "30000",
+    cuisines: ["한식"],
+    maxWalkMinutes: "",
+    needRoom: true,
+    needReservation: false,
+  };
+
+  it("올바른 입력은 서버에 보낼 요청으로 바뀐다 (빈 도보 거리는 기본값)", () => {
+    expect(validateFormValues(form)).toEqual({
+      ok: true,
+      request: {
+        purpose: "dinner",
+        people: 12,
+        budget: 30000,
+        cuisines: ["한식"],
+        maxWalkMinutes: undefined,
+        needRoom: true,
+        needReservation: false,
+      },
+    });
+  });
+
+  it("도보 거리를 적으면 숫자로 바뀐다", () => {
+    const result = validateFormValues({ ...form, maxWalkMinutes: " 7 " });
+    expect(result.ok && result.request.maxWalkMinutes).toBe(7);
+  });
+
+  it("빈 필수 칸은 '입력해 주세요'로 안내한다", () => {
+    expect(validateFormValues({ ...form, people: "", budget: "  " })).toEqual({
+      ok: false,
+      fields: { people: "인원을 입력해 주세요", budget: "1인 예산을 입력해 주세요" },
+    });
+  });
+
+  it("범위 밖·소수는 서버와 같은 문구로 안내한다", () => {
+    expect(validateFormValues({ ...form, people: "0", budget: "1000", maxWalkMinutes: "7.5" })).toEqual({
+      ok: false,
+      fields: {
+        people: "1~30명 사이로 입력해 주세요",
+        budget: "5,000~200,000원 사이로 입력해 주세요",
+        maxWalkMinutes: "도보 거리는 1~15분 사이로 입력해 주세요 (비우면 기본값)",
+      },
+    });
+  });
+
+  it("점심이면 룸·예약 체크가 남아 있어도 보내지 않는다", () => {
+    const result = validateFormValues({ ...form, purpose: "lunch", needReservation: true });
+    expect(result.ok && [result.request.needRoom, result.request.needReservation]).toEqual([false, false]);
   });
 });

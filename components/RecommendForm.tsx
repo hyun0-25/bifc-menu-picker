@@ -1,8 +1,9 @@
 "use client";
 
-// Design Ref: §5.1 ②~④·§5.3 — 추천 영역 (브라우저에서 동작)
-// 지금 단계(PLAN 작업 16): 목적 선택 + 조건 입력 폼. 입력 검사(작업 17)·제출과 결과 표시(작업 18~19)는 이어서 붙인다.
-import { useId, useState, type FormEvent } from "react";
+// Design Ref: §5.1 ②~④·§5.3·§5.4 — 추천 영역 (브라우저에서 동작)
+// 지금 단계(PLAN 작업 17): 목적 선택 + 조건 입력 폼 + 입력 검사. 제출과 결과 표시(작업 18~19)는 이어서 붙인다.
+import { useId, useState, type ChangeEvent, type FormEvent } from "react";
+import { validateFormValues, type FormValues } from "@/lib/schema";
 import { CUISINES, DEFAULT_WALK_MINUTES, INPUT_LIMITS, type Cuisine, type Purpose } from "@/lib/types";
 
 const PURPOSES: { value: Purpose; label: string; hint: string }[] = [
@@ -10,17 +11,8 @@ const PURPOSES: { value: Purpose; label: string; hint: string }[] = [
   { value: "dinner", label: "팀 회식", hint: "여럿이 함께 갈 회식 장소를 찾아요" },
 ];
 
-/** 입력 칸 값. 숫자 칸은 비워 둘 수 있도록 글자로 보관한다. */
-type FormState = {
-  people: string;
-  budget: string;
-  cuisines: Cuisine[];
-  maxWalkMinutes: string;
-  needRoom: boolean;
-  needReservation: boolean;
-};
-
-const EMPTY_FORM: FormState = {
+const EMPTY_FORM: FormValues = {
+  purpose: "lunch",
   people: "",
   budget: "",
   cuisines: [],
@@ -29,37 +21,81 @@ const EMPTY_FORM: FormState = {
   needReservation: false,
 };
 
-const inputClass =
-  "h-11 w-full rounded-lg border border-zinc-300 bg-white px-3 text-base text-zinc-900 placeholder:text-zinc-400 focus:border-zinc-900 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:focus:border-zinc-300";
+/** 입력 칸 순서 (검사 실패 시 첫 번째로 틀린 칸에 커서를 옮길 때 쓴다) */
+const NUMBER_FIELDS = ["people", "budget", "maxWalkMinutes"] as const;
+type NumberField = (typeof NUMBER_FIELDS)[number];
+
+const inputBase =
+  "h-11 w-full rounded-lg border bg-white px-3 text-base text-zinc-900 placeholder:text-zinc-400 focus:outline-none dark:bg-zinc-900 dark:text-zinc-50";
+const inputOk =
+  "border-zinc-300 focus:border-zinc-900 dark:border-zinc-700 dark:focus:border-zinc-300";
+const inputError = "border-red-500 focus:border-red-600 dark:border-red-400";
 
 export default function RecommendForm() {
-  const [purpose, setPurpose] = useState<Purpose>("lunch");
-  const [form, setForm] = useState<FormState>(EMPTY_FORM);
+  const [form, setForm] = useState<FormValues>(EMPTY_FORM);
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const id = useId();
-  const current = PURPOSES.find((p) => p.value === purpose)!;
+  const current = PURPOSES.find((p) => p.value === form.purpose)!;
   const { people, budget, maxWalkMinutes } = INPUT_LIMITS;
 
-  const update = <K extends keyof FormState>(key: K, value: FormState[K]) =>
+  /** 칸 값을 바꾸면 그 칸의 안내는 지운다 (다시 제출할 때 새로 검사) */
+  const update = <K extends keyof FormValues>(key: K, value: FormValues[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
+    setErrors((prev) => {
+      if (!(key in prev) && !("form" in prev)) return prev;
+      const next = { ...prev };
+      delete next[key];
+      delete next.form;
+      return next;
+    });
+  };
 
   const choosePurpose = (next: Purpose) => {
-    setPurpose(next);
+    update("purpose", next);
     // 룸·예약은 팀 회식에서만 묻는다. 점심으로 바꾸면 체크를 지워 다른 목적의 값이 남지 않게 한다.
     if (next === "lunch") setForm((prev) => ({ ...prev, needRoom: false, needReservation: false }));
   };
 
   const toggleCuisine = (cuisine: Cuisine) =>
-    setForm((prev) => ({
-      ...prev,
-      cuisines: prev.cuisines.includes(cuisine)
-        ? prev.cuisines.filter((c) => c !== cuisine)
-        : [...prev.cuisines, cuisine],
-    }));
+    update(
+      "cuisines",
+      form.cuisines.includes(cuisine)
+        ? form.cuisines.filter((c) => c !== cuisine)
+        : [...form.cuisines, cuisine],
+    );
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    // 입력 검사(작업 17)와 서버 호출(작업 18)을 여기에 붙인다.
+    const result = validateFormValues(form);
+    if (!result.ok) {
+      setErrors(result.fields);
+      // 첫 번째로 틀린 칸에 커서를 옮겨, 화면 읽기 프로그램도 안내를 바로 읽게 한다
+      const first = NUMBER_FIELDS.find((field) => field in result.fields);
+      if (first) document.getElementById(`${id}-${first}`)?.focus();
+      return;
+    }
+    setErrors({});
+    // 서버 호출(작업 18)을 여기에 붙인다: result.request를 POST /api/recommend로 보낸다.
   };
+
+  /** 숫자 칸 공통 속성: 틀렸으면 빨간 테두리 + 안내 문구 연결 */
+  const numberFieldProps = (field: NumberField, extraClass: string) => ({
+    id: `${id}-${field}`,
+    type: "number",
+    inputMode: "numeric" as const,
+    value: form[field],
+    onChange: (e: ChangeEvent<HTMLInputElement>) => update(field, e.target.value),
+    "aria-invalid": field in errors,
+    "aria-describedby": field in errors ? `${id}-${field}-error` : undefined,
+    className: `${inputBase} ${field in errors ? inputError : inputOk} ${extraClass}`,
+  });
+
+  const fieldError = (field: string) =>
+    errors[field] ? (
+      <p id={`${id}-${field}-error`} className="text-sm text-red-600 dark:text-red-400">
+        {errors[field]}
+      </p>
+    ) : null;
 
   return (
     <section aria-label="추천 조건" className="flex flex-col gap-3">
@@ -69,7 +105,7 @@ export default function RecommendForm() {
         className="grid grid-cols-2 gap-1 rounded-xl bg-zinc-100 p-1 dark:bg-zinc-800"
       >
         {PURPOSES.map((p) => {
-          const selected = p.value === purpose;
+          const selected = p.value === form.purpose;
           return (
             <button
               key={p.value}
@@ -91,47 +127,43 @@ export default function RecommendForm() {
 
       <form onSubmit={handleSubmit} noValidate className="mt-2 flex flex-col gap-5">
         <div className="grid grid-cols-2 gap-3">
-          <label htmlFor={`${id}-people`} className="flex flex-col gap-1.5">
-            <span className="text-sm font-medium">인원</span>
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor={`${id}-people`} className="text-sm font-medium">
+              인원
+            </label>
             <div className="relative">
               <input
-                id={`${id}-people`}
-                type="number"
-                inputMode="numeric"
+                {...numberFieldProps("people", "pr-9")}
                 min={people.min}
                 max={people.max}
                 step={1}
-                placeholder={purpose === "lunch" ? "예: 4" : "예: 10"}
-                value={form.people}
-                onChange={(e) => update("people", e.target.value)}
-                className={`${inputClass} pr-9`}
+                placeholder={form.purpose === "lunch" ? "예: 4" : "예: 10"}
               />
               <span aria-hidden="true" className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-sm text-zinc-500">
                 명
               </span>
             </div>
-          </label>
+            {fieldError("people")}
+          </div>
 
-          <label htmlFor={`${id}-budget`} className="flex flex-col gap-1.5">
-            <span className="text-sm font-medium">1인 예산</span>
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor={`${id}-budget`} className="text-sm font-medium">
+              1인 예산
+            </label>
             <div className="relative">
               <input
-                id={`${id}-budget`}
-                type="number"
-                inputMode="numeric"
+                {...numberFieldProps("budget", "pr-9")}
                 min={budget.min}
                 max={budget.max}
                 step={1000}
-                placeholder={purpose === "lunch" ? "예: 15000" : "예: 30000"}
-                value={form.budget}
-                onChange={(e) => update("budget", e.target.value)}
-                className={`${inputClass} pr-9`}
+                placeholder={form.purpose === "lunch" ? "예: 15000" : "예: 30000"}
               />
               <span aria-hidden="true" className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-sm text-zinc-500">
                 원
               </span>
             </div>
-          </label>
+            {fieldError("budget")}
+          </div>
         </div>
 
         <fieldset className="flex flex-col gap-2">
@@ -161,35 +193,34 @@ export default function RecommendForm() {
               );
             })}
           </div>
+          {fieldError("cuisines")}
         </fieldset>
 
-        <label htmlFor={`${id}-walk`} className="flex flex-col gap-1.5">
-          <span className="text-sm font-medium">
-            도보 거리{" "}
-            <span className="font-normal text-zinc-500">
-              (비우면 {DEFAULT_WALK_MINUTES[purpose]}분 이내)
-            </span>
-          </span>
-          <div className="relative w-1/2 pr-1.5">
-            <input
-              id={`${id}-walk`}
-              type="number"
-              inputMode="numeric"
-              min={maxWalkMinutes.min}
-              max={maxWalkMinutes.max}
-              step={1}
-              placeholder={`기본 ${DEFAULT_WALK_MINUTES[purpose]}`}
-              value={form.maxWalkMinutes}
-              onChange={(e) => update("maxWalkMinutes", e.target.value)}
-              className={`${inputClass} pr-16`}
-            />
-            <span aria-hidden="true" className="pointer-events-none absolute top-1/2 right-4.5 -translate-y-1/2 text-sm text-zinc-500">
-              분 이내
-            </span>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="col-span-2 flex flex-col gap-1.5 sm:col-span-1">
+            <label htmlFor={`${id}-maxWalkMinutes`} className="text-sm font-medium">
+              도보 거리{" "}
+              <span className="font-normal text-zinc-500">
+                (비우면 {DEFAULT_WALK_MINUTES[form.purpose]}분 이내)
+              </span>
+            </label>
+            <div className="relative">
+              <input
+                {...numberFieldProps("maxWalkMinutes", "pr-16")}
+                min={maxWalkMinutes.min}
+                max={maxWalkMinutes.max}
+                step={1}
+                placeholder={`기본 ${DEFAULT_WALK_MINUTES[form.purpose]}`}
+              />
+              <span aria-hidden="true" className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-sm text-zinc-500">
+                분 이내
+              </span>
+            </div>
+            {fieldError("maxWalkMinutes")}
           </div>
-        </label>
+        </div>
 
-        {purpose === "dinner" && (
+        {form.purpose === "dinner" && (
           <fieldset className="flex flex-col gap-2">
             <legend className="mb-1.5 text-sm font-medium">회식 조건</legend>
             <div className="flex flex-wrap gap-x-6 gap-y-2">
@@ -215,6 +246,7 @@ export default function RecommendForm() {
           </fieldset>
         )}
 
+        {fieldError("form")}
         <button
           type="submit"
           className="h-12 rounded-xl bg-zinc-900 text-base font-semibold text-white transition-colors hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
