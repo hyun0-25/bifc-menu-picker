@@ -1,9 +1,9 @@
 "use client";
 
 // Design Ref: §5.1 ②~④·§5.3·§5.4 — 추천 영역 (브라우저에서 동작)
-// 지금 단계(PLAN 작업 19): 목적 선택 + 조건 입력 폼 + 입력 검사 + 제출 + 결과 카드.
-// 안내·오류 띠(작업 20)는 이어서 다듬는다.
+// 구성(PLAN 작업 15~20): 목적 선택 + 조건 입력 폼 + 입력 검사 + 제출 + 안내·오류 띠 + 결과 카드.
 import { useId, useState, type ChangeEvent, type FormEvent } from "react";
+import NoticeBanner from "@/components/NoticeBanner";
 import ResultCard from "@/components/ResultCard";
 import { validateFormValues, type FormValues } from "@/lib/schema";
 import {
@@ -83,7 +83,7 @@ export default function RecommendForm() {
   const [loading, setLoading] = useState(false);
   /** 마지막으로 받은 추천 결과 */
   const [response, setResponse] = useState<RecommendResponse | null>(null);
-  /** 서버·AI 오류 문구 (안내 띠 모양은 작업 20에서 다듬는다) */
+  /** 서버·AI 오류 문구 */
   const [requestError, setRequestError] = useState<string | null>(null);
   const id = useId();
   const current = PURPOSES.find((p) => p.value === form.purpose)!;
@@ -328,20 +328,27 @@ export default function RecommendForm() {
         </button>
       </form>
 
-      {/* 결과 상태 알림: 화면 읽기 프로그램이 결과·오류를 바로 읽도록 한다. 띠 모양은 작업 20에서 다듬는다. */}
-      <div aria-live="polite" className="text-sm">
+      {/* 안내·오류 띠 (Design §5.1 ⑤): 화면 읽기 프로그램이 결과·오류를 바로 읽도록 알림 영역에 둔다 */}
+      <div aria-live="polite" className="flex flex-col gap-3">
         {requestError && (
-          <p role="alert" className="text-red-600 dark:text-red-400">
-            {requestError}
-          </p>
+          <NoticeBanner variant="error" title={requestError}>
+            조건은 그대로 두었어요. 잠시 뒤 다시 “추천 받기”를 눌러 주세요.
+          </NoticeBanner>
         )}
-        {!loading && !requestError && response && (
-          <p className="text-zinc-600 dark:text-zinc-400">
-            {response.recommendations.length > 0
-              ? `추천 ${response.recommendations.length}곳을 골랐어요`
-              : "조건에 맞는 곳이 없어요."}
-            {response.notice && ` (${response.notice})`}
-          </p>
+        {!loading && !requestError && response && response.recommendations.length === 0 && (
+          <NoticeBanner variant="info" title={response.notice ?? "조건에 맞는 곳이 없어요."}>
+            인원·예산·도보 거리를 조금 넓히거나 룸·예약 조건을 빼 보세요.
+          </NoticeBanner>
+        )}
+        {!loading && !requestError && response && response.recommendations.length > 0 && (
+          <>
+            {response.notice && (
+              <NoticeBanner variant="info" title={response.notice}>
+                조건에 맞는 곳이 {response.recommendations.length}곳이라 그만큼만 보여 드려요.
+              </NoticeBanner>
+            )}
+            <p className="sr-only">추천 {response.recommendations.length}곳을 골랐어요</p>
+          </>
         )}
       </div>
 
