@@ -247,7 +247,7 @@ export default function RecommendForm() {
                   type="button"
                   aria-pressed={selected}
                   onClick={() => toggleCuisine(cuisine)}
-                  className={`h-9 rounded-full border px-4 text-sm transition-colors ${
+                  className={`h-10 rounded-full border px-4 text-sm transition-colors ${
                     selected
                       ? "border-zinc-900 bg-zinc-900 text-white dark:border-zinc-100 dark:bg-zinc-100 dark:text-zinc-900"
                       : "border-zinc-300 text-zinc-700 hover:border-zinc-500 dark:border-zinc-700 dark:text-zinc-300"
@@ -289,7 +289,7 @@ export default function RecommendForm() {
           <fieldset className="flex flex-col gap-2">
             <legend className="mb-1.5 text-sm font-medium">회식 조건</legend>
             <div className="flex flex-wrap gap-x-6 gap-y-2">
-              <label className="flex items-center gap-2 text-base">
+              <label className="flex min-h-11 cursor-pointer items-center gap-2 text-base">
                 <input
                   type="checkbox"
                   checked={form.needRoom}
@@ -298,7 +298,7 @@ export default function RecommendForm() {
                 />
                 룸(단체석) 필요
               </label>
-              <label className="flex items-center gap-2 text-base">
+              <label className="flex min-h-11 cursor-pointer items-center gap-2 text-base">
                 <input
                   type="checkbox"
                   checked={form.needReservation}

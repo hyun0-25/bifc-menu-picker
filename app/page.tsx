@@ -3,7 +3,8 @@ import RecommendForm from "@/components/RecommendForm";
 
 export default function Home() {
   return (
-    <main className="mx-auto flex w-full max-w-[640px] flex-1 flex-col gap-6 px-4 py-8 sm:py-12">
+    // break-keep: 한글 문장을 글자 중간이 아니라 단어(띄어쓰기) 단위로 줄바꿈한다
+    <main className="mx-auto flex w-full max-w-[640px] flex-1 flex-col gap-6 px-4 py-8 break-keep sm:py-12">
       <header className="flex flex-col gap-1">
         <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">오늘 뭐 먹지 @BIFC</h1>
         <p className="text-zinc-600 dark:text-zinc-400">
