@@ -13,6 +13,7 @@ const sample = {
   walkMinutes: 5,
   maxCapacity: 30,
   hasRoom: false,
+  roomCapacity: 0,
   reservation: "불가",
 };
 
@@ -63,6 +64,26 @@ describe("validateRestaurants", () => {
       "1번째 가게(r01): 가게 이름이 비어 있습니다",
       "2번째 가게(r01): 룸 여부는 true 또는 false여야 합니다",
     ]);
+  });
+
+  it("룸 여부·룸 인원·최대 인원이 서로 맞지 않으면 막는다", () => {
+    expect(validateRestaurants([{ ...sample, hasRoom: true, roomCapacity: 12 }]).ok).toBe(true);
+    expect(problemsOf([{ ...sample, hasRoom: false, roomCapacity: 8 }])).toEqual([
+      "1번째 가게(r01): 룸이 없으면 룸 인원은 0이어야 합니다",
+    ]);
+    expect(problemsOf([{ ...sample, hasRoom: true, roomCapacity: 0 }])).toEqual([
+      "1번째 가게(r01): 룸이 있으면 룸 인원은 1명 이상이어야 합니다",
+    ]);
+    expect(problemsOf([{ ...sample, hasRoom: true, roomCapacity: 40 }])).toEqual([
+      "1번째 가게(r01): 룸 인원은 최대 인원보다 클 수 없습니다",
+    ]);
+  });
+
+  it("모르는 값을 \"정보 없음\"으로 적으면 막는다 (예약 여부만 허용)", () => {
+    expect(problemsOf([{ ...sample, maxCapacity: "정보 없음" }])).toEqual([
+      "1번째 가게(r01): 최대 인원은 숫자(명)여야 합니다",
+    ]);
+    expect(validateRestaurants([{ ...sample, reservation: "정보 없음" }]).ok).toBe(true);
   });
 
   it("오타 난 항목 이름을 막는다", () => {

@@ -39,6 +39,8 @@ export type Restaurant = {
   maxCapacity: number;
   /** 룸·단체석 여부 */
   hasRoom: boolean;
+  /** 룸 하나에 앉을 수 있는 최대 인원(명). 룸이 없으면 0 */
+  roomCapacity: number;
   /** 예약 가능 여부 */
   reservation: ReservationStatus;
 };

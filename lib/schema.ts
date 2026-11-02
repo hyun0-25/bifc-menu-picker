@@ -1,4 +1,4 @@
-// Design Ref: §3.1 — 식당 목록 파일의 형식 검사 규칙
+// Design Ref: §3.1 — 식당 목록 파일의 형식 검사 규칙 (모르는 값은 허용하지 않음, 예약 여부만 "정보 없음" 가능)
 // 입력 조건·AI 답 검사 규칙은 이후 작업(PLAN 8, 11)에서 이 파일에 추가한다.
 import { z } from "zod";
 import { CUISINES, MAX_WALK_MINUTES, RESERVATION_STATUSES } from "./types";
@@ -33,9 +33,25 @@ export const restaurantSchema = z.strictObject(
       .int({ error: "최대 인원은 정수(명)여야 합니다" })
       .positive({ error: "최대 인원은 1명 이상이어야 합니다" }),
     hasRoom: z.boolean({ error: "룸 여부는 true 또는 false여야 합니다" }),
+    roomCapacity: z
+      .number({ error: "룸 인원은 숫자(명)여야 합니다 (룸이 없으면 0)" })
+      .int({ error: "룸 인원은 정수(명)여야 합니다" })
+      .min(0, { error: "룸 인원은 0 이상이어야 합니다" }),
     reservation: z.enum(RESERVATION_STATUSES, {
       error: `예약 여부는 ${RESERVATION_STATUSES.join("·")} 중 하나여야 합니다`,
     }),
   },
   { error: "정해지지 않은 항목이 들어 있습니다 (오타인지 확인)" },
-);
+)
+  // 항목끼리 서로 맞는지 검사: 룸 여부와 룸 인원, 룸 인원과 최대 인원
+  .superRefine((r, ctx) => {
+    if (!r.hasRoom && r.roomCapacity !== 0) {
+      ctx.addIssue({ code: "custom", message: "룸이 없으면 룸 인원은 0이어야 합니다" });
+    }
+    if (r.hasRoom && r.roomCapacity < 1) {
+      ctx.addIssue({ code: "custom", message: "룸이 있으면 룸 인원은 1명 이상이어야 합니다" });
+    }
+    if (r.roomCapacity > r.maxCapacity) {
+      ctx.addIssue({ code: "custom", message: "룸 인원은 최대 인원보다 클 수 없습니다" });
+    }
+  });

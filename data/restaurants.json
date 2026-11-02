@@ -7,6 +7,7 @@
     "walkMinutes": 5,
     "maxCapacity": 30,
     "hasRoom": false,
+    "roomCapacity": 0,
     "reservation": "불가"
   },
   {
@@ -17,6 +18,7 @@
     "walkMinutes": 8,
     "maxCapacity": 20,
     "hasRoom": true,
+    "roomCapacity": 12,
     "reservation": "가능"
   },
   {
@@ -27,6 +29,7 @@
     "walkMinutes": 12,
     "maxCapacity": 8,
     "hasRoom": false,
+    "roomCapacity": 0,
     "reservation": "정보 없음"
   }
 ]
