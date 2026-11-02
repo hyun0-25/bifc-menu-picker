@@ -1,10 +1,11 @@
 // Design Ref: §2.2·§4 — 추천 서버 API: POST /api/recommend
-// 지금 단계(PLAN 작업 9): 입력 검사 → 목록 읽기 → 필터 → 가까운 순 3곳(기본 문장)까지. AI 연결은 작업 10~12에서 붙인다.
+// 흐름: 입력 검사 → 목록 읽기 → 필터 → (후보 0곳이면 바로 안내) → AI 고르기·검사·1회 재요청·보정 → 안내 문구
+import { AiTimeoutError, requestAiPicks } from "@/lib/ai";
 import { filterCandidates } from "@/lib/filter";
 import { loadRestaurants, RestaurantDataError } from "@/lib/restaurants";
 import { parseRecommendRequest } from "@/lib/schema";
 import type { ErrorCode, ErrorResponse, RecommendResponse } from "@/lib/types";
-import { chooseNotice, fillRecommendations } from "@/lib/verify";
+import { chooseNotice, NOTICES, pickWithRetry } from "@/lib/verify";
 
 /** 요청 본문 최대 크기(글자 수). 정상 요청은 수백 자 수준이다. */
 const MAX_BODY_LENGTH = 10_000;
@@ -56,12 +57,37 @@ export async function POST(request: Request) {
     return errorResponse(500, "DATA_ERROR", "식당 목록을 읽지 못했어요. 관리자에게 알려 주세요.");
   }
 
-  // 3) 조건 거르기 (처리 6) — 0곳이면 바로 안내 (처리 7)
+  // 3) 조건 거르기 (처리 6)
   const candidates = filterCandidates(restaurants, conditions);
 
-  // 4) 임시 선택: 가까운 순으로 메뉴 규칙을 지키며 3곳 (작업 10~12에서 AI 선택으로 바꾼다)
-  const recommendations = fillRecommendations([], candidates, conditions);
+  // 4) 후보가 0곳이면 AI를 부르지 않고 바로 안내한다 (처리 7, PRD must ① 규칙 2: 가게를 지어내지 않음)
+  if (candidates.length === 0) {
+    const empty: RecommendResponse = { recommendations: [], notice: NOTICES.none };
+    return Response.json(empty);
+  }
 
+  // 5) AI 고르기 → 검사 → 문제 있으면 1회 재요청 → 남은 문제는 코드로 보정 (처리 8~10)
+  let recommendations;
+  try {
+    const result = await pickWithRetry(
+      (feedback) => requestAiPicks(conditions, candidates, { feedback }),
+      candidates,
+      conditions,
+    );
+    recommendations = result.recommendations;
+    if (result.retried) {
+      // 서버 기록용: 입력값·키는 남기지 않고 규칙 위반 내용만 남긴다
+      console.warn(`AI 답을 다시 요청함. 보정 후 남은 문제 ${result.problems.length}건`, result.problems);
+    }
+  } catch (error) {
+    console.error("AI 추천 실패", error instanceof Error ? error.message : error);
+    if (error instanceof AiTimeoutError) {
+      return errorResponse(504, "AI_TIMEOUT", "추천이 늦어지고 있어요. 잠시 후 다시 시도해 주세요.");
+    }
+    return errorResponse(502, "AI_ERROR", "추천을 받지 못했어요. 잠시 후 다시 시도해 주세요.");
+  }
+
+  // 6) 안내 문구 (처리 11)
   const notice = chooseNotice(candidates.length, recommendations.length);
   const response: RecommendResponse = { recommendations, ...(notice && { notice }) };
   return Response.json(response);
