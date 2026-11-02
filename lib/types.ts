@@ -83,3 +83,33 @@ export type RecommendRequest = FilterConditions & {
   /** 메뉴 취향. 비어 있으면 "상관없음" (필터가 아니라 AI가 우선해서 고르는 기준) */
   cuisines: Cuisine[];
 };
+
+// Design Ref: §3.3·§4 — 서버 → 화면 응답
+
+/** 추천 결과 한 곳: 목록 값 그대로 + 추천 이유 */
+export type Recommendation = Restaurant & {
+  /** 추천 이유 1줄 (AI가 쓴 글 또는 코드가 만든 기본 문장) */
+  reason: string;
+};
+
+/** 추천 결과 응답 (200) */
+export type RecommendResponse = {
+  /** 추천 가게. 후보가 3곳 이상이면 정확히 3곳 */
+  recommendations: Recommendation[];
+  /** 안내 문구 (후보 부족 등). 없으면 생략 */
+  notice?: string;
+};
+
+/** 오류 코드 — Design §4 */
+export type ErrorCode = "INVALID_INPUT" | "DATA_ERROR" | "AI_TIMEOUT" | "AI_ERROR";
+
+/** 오류 응답 (400·500 등) */
+export type ErrorResponse = {
+  error: {
+    code: ErrorCode;
+    /** 화면에 보여 줄 문구 */
+    message: string;
+    /** 칸별 안내 (입력 오류일 때만) */
+    fields?: Record<string, string>;
+  };
+};

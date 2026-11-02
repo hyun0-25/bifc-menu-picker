@@ -61,13 +61,20 @@ export function validateRestaurants(data: unknown): ValidationResult {
   return problems.length > 0 ? { ok: false, problems } : { ok: true, restaurants };
 }
 
-/** 목록 파일을 읽고 검사해 식당 목록을 돌려준다. 문제가 있으면 RestaurantDataError를 던진다. */
-export async function loadRestaurants(filePath: string = RESTAURANTS_FILE): Promise<Restaurant[]> {
+/**
+ * 목록 파일을 읽고 검사해 식당 목록을 돌려준다. 문제가 있으면 RestaurantDataError를 던진다.
+ * filePath는 점검(테스트)에서만 넘긴다.
+ */
+export async function loadRestaurants(filePath?: string): Promise<Restaurant[]> {
   let text: string;
   try {
-    text = await readFile(filePath, "utf8");
+    // 기본 경로는 고정 문자열로 적어야 배포(Vercel) 때 data/restaurants.json만 함께 올라간다.
+    // 경로를 변수로 받으면 빌드가 프로젝트 전체를 서버 코드에 포함시키므로, 테스트용 호출은 추적에서 뺀다.
+    text = filePath
+      ? await readFile(/* turbopackIgnore: true */ filePath, "utf8")
+      : await readFile(join(process.cwd(), "data", "restaurants.json"), "utf8");
   } catch {
-    throw new RestaurantDataError([`목록 파일을 찾지 못했습니다: ${filePath}`]);
+    throw new RestaurantDataError([`목록 파일을 찾지 못했습니다: ${filePath ?? RESTAURANTS_FILE}`]);
   }
 
   let data: unknown;
