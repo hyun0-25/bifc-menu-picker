@@ -7,6 +7,12 @@ import { parseRecommendRequest } from "@/lib/schema";
 import type { ErrorCode, ErrorResponse, RecommendResponse } from "@/lib/types";
 import { chooseNotice, NOTICES, pickWithRetry } from "@/lib/verify";
 
+/**
+ * 이 API의 최대 실행 시간(초). 배포 플랫폼(Vercel)이 이 값을 보고 실행 제한을 정한다.
+ * AI 1회 최대 20초 × (첫 요청 + 재요청 1회) + 여유. 화면은 45초까지 기다린다.
+ */
+export const maxDuration = 60;
+
 /** 요청 본문 최대 크기(글자 수). 정상 요청은 수백 자 수준이다. */
 const MAX_BODY_LENGTH = 10_000;
 
