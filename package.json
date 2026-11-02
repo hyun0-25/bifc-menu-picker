@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "check:ai": "node --env-file=.env scripts/check-ai.mjs"
+    "check:ai": "node --env-file=.env scripts/check-ai.mjs",
+    "eval": "node --env-file=.env node_modules/vitest/vitest.mjs run --config vitest.eval.config.mts"
   },
   "dependencies": {
     "next": "16.4.3",
