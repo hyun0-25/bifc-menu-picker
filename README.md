@@ -1,36 +1,83 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 오늘 뭐 먹지 @BIFC
 
-## Getting Started
+부산 문현동 **BIFC 본사 직원**이 점심 약속이나 팀 회식 장소를 정할 때, 조건만 입력하면 **직접 조사한 식당 목록에서만** 골라 **3곳과 추천 이유**를 보여 주는 웹 앱입니다.
 
-First, run the development server:
+> 기획서: [PRD.md](PRD.md) · 계획서: [PLAN.md](PLAN.md) · 설계: [DESIGN.md](DESIGN.md)
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## 어떤 문제를 푸나요
+
+식당 정보가 개인 기억과 입소문에 흩어져 있고, 지도 앱은 "10명, 1인 3만 원, 룸 있음" 같은 회사 상황으로 걸러 주지 않아 장소를 정하는 데 30분~1시간이 걸립니다. 이 앱은 조건을 넣으면 5분 안에 후보 3곳을 정하도록 돕습니다.
+
+## 주요 기능
+
+- **조건 맞춤 추천**: 목적(점심 약속 / 팀 회식), 인원, 1인 예산, 메뉴 취향, 도보 거리, 룸·예약 필요 여부를 입력하면 조건에 맞는 3곳을 추천합니다. 후보가 3곳보다 적으면 있는 만큼만 보여 주고, "무엇을 빼면 몇 곳이 나오는지"도 알려 줍니다.
+- **추천 이유 한 줄**: 가게마다 50자 이내로, 목록에 적힌 가격·도보(차량) 시간·인원 숫자를 넣어 설명합니다.
+- **팀 회식은 도보 / 차량 선택**: 차량을 고르면 도보 15분 밖의 회식 장소도 후보가 됩니다. 차량 시간은 직선거리로 어림한 값(약 N분)입니다.
+- **추가 조건(자연어)**: "매콤한", "느끼하지 않은"처럼 적으면 대표 메뉴 이름을 근거로 되도록 맞춰 고릅니다. 필터가 아니라 참고 기준이라 예산·인원·거리 조건은 그대로 지킵니다.
+- **카카오맵 링크**: 결과 카드에서 가게의 카카오맵 페이지를 새 창으로 엽니다.
+- **회식 공지문 만들기**: 날짜를 넣으면 200자 이내, 참석자 이름 없는 공지문을 만들어 복사할 수 있습니다.
+
+## 믿을 수 있게 만든 방법
+
+> 지킬 수 있는 규칙은 AI에 맡기지 않고 **코드로 보장**합니다.
+
+1. 예산·인원·룸·예약·거리 조건은 **AI를 부르기 전에 코드로** 걸러 냅니다.
+2. AI는 남은 후보 중에서 고르고 이유만 씁니다. 가게 정보는 `id` 후보 안에서만 고를 수 있는 JSON 형식으로 받습니다.
+3. AI 응답은 다시 검사합니다. 후보에 없는 가게는 제거하고, 이름·가격·시간·인원 등 화면의 값은 **AI 답이 아니라 목록 값으로 덮어씁니다.** 이유 규칙을 어기면 1회 다시 요청하고, 그래도 어기면 코드가 만든 기본 문장으로 바꿉니다.
+4. 확인하지 못한 값(최대 인원 등)은 짐작하지 않고 **"정보 없음"** 으로 두며, 숫자로 쓰지 않습니다.
+
+## 기술 스택
+
+- Next.js 16 (App Router) · React 19 · TypeScript · Tailwind CSS v4
+- OpenAI API (`openai` SDK, 서버 코드에서만 사용) · zod(입력·목록 검사) · vitest(자동 점검)
+- 배포: Vercel
+
+## 폴더 구조
+
+```
+app/            화면 1개와 서버 API 1개 (POST /api/recommend)
+components/     입력 폼, 결과 카드, 안내 띠, 공지문 패널
+lib/            필터, AI 호출, AI 응답 검사, 형식 검사
+data/           restaurants.json (식당 목록: 도보 27곳 + 차량 전용 24곳)
+scripts/        식당 목록 자동 갱신 도구 (작성자용)
+eval/ docs/     성공 기준 평가, 배포·데이터 작성 기준 문서
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 직접 실행해 보기
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npm install
+# 프로젝트 폴더에 .env 파일을 만들고 아래 값을 적습니다
+npm run dev            # http://localhost:3000
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+`.env`에는 서버에서만 쓰는 키를 적습니다. **`NEXT_PUBLIC_` 접두사를 붙이지 마세요.**
 
-## Learn More
+```
+OPENAI_API_KEY=여기에_본인_OpenAI_키
+# OPENAI_MODEL=gpt-5.4-mini   (선택)
+```
 
-To learn more about Next.js, take a look at the following resources:
+| 명령 | 설명 |
+|---|---|
+| `npm run dev` | 개발 서버 |
+| `npm run build` | 프로덕션 빌드 |
+| `npm run lint` | 코드 검사 |
+| `npm test` | 자동 점검 (AI 호출 없음, 요금 없음) |
+| `npm run eval` | 테스트 질문 10개로 성공 기준 평가 (실제 AI 호출) |
+| `npm run refresh:data` | 식당 목록을 카카오맵과 비교하는 미리보기 (`-- --write`로 반영) |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 보안과 개인정보
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- API 키는 `.env`(깃에 올라가지 않음)와 Vercel 환경 변수에만 두고, 서버 코드에서만 읽습니다.
+- 이름·연락처·사번은 받지 않습니다. 자유 입력은 "추가 조건" 1칸(최대 60자)뿐이며 이메일·전화번호 모양은 막고, 입력과 결과는 **저장하지 않습니다.** 이 문장은 추천을 위해 OpenAI로 전송되므로 개인정보를 적지 마세요.
 
-## Deploy on Vercel
+## 식당 데이터에 대해
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- 2026-11-03에 카카오맵 공개 정보로 조사했고, 가게마다 출처(`source`)를 남겼습니다. 기준과 한계는 [docs/data-sources.md](docs/data-sources.md)에 있습니다.
+- 최대 인원·룸 인원·예약 가능 여부는 대부분 공개 정보가 없어 "정보 없음"입니다. 차량 시간과 일부 가격(메뉴판 대표값)은 어림값이라 실제와 다를 수 있습니다.
+- 실시간으로 지도 서비스를 호출하지 않습니다. 추천은 이 목록 안에서만 이루어집니다.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 만들지 않은 것
+
+앱 안의 예약·결제, 지도·맛집 서비스 실시간 연동, 리뷰·평점, 로그인, GPS 기반 추천, 관리자 화면, 모바일 앱 (자세한 범위는 [PRD.md](PRD.md) 6장).
