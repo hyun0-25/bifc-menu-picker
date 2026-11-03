@@ -28,9 +28,10 @@ export const NOTICES = {
  * 인원이 "정보 없음"이면 숫자 대신 확인된 표시를 쓴다: "룸 있음" / "단체석 있음" (없으면 생략)
  */
 export function defaultReason(restaurant: Restaurant, conditions: FilterConditions): string {
+  const byCar = conditions.travelMode === "car" && restaurant.driveMinutes !== undefined;
   const parts = [
     `1인 ${restaurant.pricePerPerson.toLocaleString("ko-KR")}원`,
-    `도보 ${restaurant.walkMinutes}분`,
+    byCar ? `차량 약 ${restaurant.driveMinutes}분` : `도보 ${restaurant.walkMinutes}분`,
   ];
   if (conditions.needRoom) {
     parts.push(restaurant.roomCapacity === UNKNOWN ? "룸 있음" : `룸 ${restaurant.roomCapacity}명`);
@@ -150,7 +151,7 @@ export const MIN_REASON_NUMBERS = 2;
 
 /**
  * 추천 이유가 이유 규칙을 지키는지 검사한다. 문제가 없으면 빈 배열.
- * 허용 표기: "1인 25,000원" / "도보 5분" / "최대 20명"·"룸 12명"·"10명"(입력 인원)
+ * 허용 표기: "1인 25,000원" / "도보 5분" / "차량 약 5분" / "최대 20명"·"룸 12명"·"10명"(입력 인원)
  * 이유에 나온 숫자는 모두 이 표기 안에 있어야 하고, 그 가게의 목록 값(또는 입력 인원)과 같아야 한다.
  */
 export function checkReason(reason: string, restaurant: Restaurant, people: number): string[] {
@@ -184,6 +185,11 @@ export function checkReason(reason: string, restaurant: Restaurant, people: numb
       ? null
       : `도보 시간이 목록 값과 다릅니다 (${m[1]}분, 목록 ${restaurant.walkMinutes}분)`,
   );
+  take(/차량\s?약?\s?(\d+)분/g, (m) =>
+    Number(m[1]) === restaurant.driveMinutes
+      ? null
+      : `차량 시간이 목록 값과 다릅니다 (${m[1]}분, 목록 ${restaurant.driveMinutes ?? "없음"}분)`,
+  );
   take(/(최대|룸)?\s?(\d+)명/g, (m) => {
     const n = Number(m[2]);
     if (m[1] === "최대") return n === restaurant.maxCapacity ? null : `최대 인원이 목록 값과 다릅니다 (${n}명)`;
@@ -197,7 +203,7 @@ export function checkReason(reason: string, restaurant: Restaurant, people: numb
     problems.push(`숫자 항목이 ${MIN_REASON_NUMBERS}개 이상 필요합니다 (${count}개)`);
   }
   if (/\d/.test(rest.replace(/1인/g, " "))) {
-    problems.push("정해진 표기(1인 N원·도보 N분·N명) 밖의 숫자가 있습니다");
+    problems.push("정해진 표기(1인 N원·도보 N분·차량 약 N분·N명) 밖의 숫자가 있습니다");
   }
   return problems;
 }

@@ -160,12 +160,12 @@ describe("mergePlace (안전하게 합치기)", () => {
     expect(mergePlace({ ...current, reservation: "불가" }, d).next.reservation).toBe("불가");
   });
 
-  it("폐업 의심·15분 초과는 값을 바꾸지 않고 알린다", () => {
-    const d = { ...derivePlace(panel(), NOW), open: false, walk: 16 };
+  it("폐업 의심·너무 먼 가게는 값을 바꾸지 않고 알린다", () => {
+    const d = { ...derivePlace(panel(), NOW), open: false, walk: 70, drive: 31 };
     const { next, warnings } = mergePlace(current, d);
     expect(next.walkMinutes).toBe(1);
     expect(warnings.join("\n")).toContain("영업 상태가 정상이 아니에요");
-    expect(warnings.join("\n")).toContain("15분을 넘어요");
+    expect(warnings.join("\n")).toContain("너무 멀어요");
   });
 
   it("1년 넘게 갱신 안 된 정보와 가격 미공개를 알린다", () => {

@@ -5,6 +5,7 @@ import { z } from "zod";
 import {
   CUISINES,
   INPUT_LIMITS,
+  MAX_LIST_WALK_MINUTES,
   MAX_WALK_MINUTES,
   RESERVATION_STATUSES,
   TRAVEL_MODES,
@@ -62,8 +63,8 @@ export const restaurantSchema = z.strictObject(
       .number({ error: "도보 시간은 숫자(분)여야 합니다" })
       .int({ error: "도보 시간은 정수(분)여야 합니다" })
       .min(1, { error: "도보 시간은 1분 이상이어야 합니다" })
-      .max(MAX_WALK_MINUTES, {
-        error: `도보 시간은 ${MAX_WALK_MINUTES}분 이하여야 합니다 (그보다 먼 가게는 목록에 넣지 않음)`,
+      .max(MAX_LIST_WALK_MINUTES, {
+        error: `도보 시간은 ${MAX_LIST_WALK_MINUTES}분 이하여야 합니다 (그보다 먼 가게는 목록에 넣지 않음)`,
       }),
     driveMinutes: z
       .number({ error: "차량 시간은 숫자(분)여야 합니다" })
@@ -90,6 +91,9 @@ export const restaurantSchema = z.strictObject(
   // 항목끼리 서로 맞는지 검사: 룸 여부와 룸 인원, 룸 인원과 최대 인원
   .superRefine((r, ctx) => {
     const issue = (message: string) => ctx.addIssue({ code: "custom", message });
+    if (r.walkMinutes > MAX_WALK_MINUTES && r.driveMinutes === undefined) {
+      issue(`도보 ${MAX_WALK_MINUTES}분을 넘는 가게는 차량 시간(driveMinutes)을 함께 적어야 합니다`);
+    }
     if (r.hasRoom === false && r.roomCapacity !== 0) issue("룸이 없으면 룸 인원은 0이어야 합니다");
     if (r.hasRoom === true && r.roomCapacity === 0) {
       issue(`룸이 있으면 룸 인원은 1명 이상 또는 "${UNKNOWN}"이어야 합니다`);

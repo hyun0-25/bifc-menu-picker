@@ -37,10 +37,17 @@ describe("validateRestaurants", () => {
     expect(validateRestaurants([sample])).toEqual({ ok: true, restaurants: [sample] });
   });
 
-  it("도보 15분은 통과하고 16분은 막는다", () => {
+  it("도보 15분 이하는 통과하고, 16분 이상은 차량 시간이 있어야 통과한다", () => {
     expect(validateRestaurants([{ ...sample, walkMinutes: 15 }]).ok).toBe(true);
     expect(problemsOf([{ ...sample, walkMinutes: 16 }])).toEqual([
-      "1번째 가게(r01): 도보 시간은 15분 이하여야 합니다 (그보다 먼 가게는 목록에 넣지 않음)",
+      "1번째 가게(r01): 도보 15분을 넘는 가게는 차량 시간(driveMinutes)을 함께 적어야 합니다",
+    ]);
+    expect(validateRestaurants([{ ...sample, walkMinutes: 30, driveMinutes: 9 }]).ok).toBe(true);
+  });
+
+  it("도보 60분을 넘는 가게는 막는다", () => {
+    expect(problemsOf([{ ...sample, walkMinutes: 61, driveMinutes: 20 }])).toEqual([
+      "1번째 가게(r01): 도보 시간은 60분 이하여야 합니다 (그보다 먼 가게는 목록에 넣지 않음)",
     ]);
   });
 

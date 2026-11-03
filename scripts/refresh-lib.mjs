@@ -8,8 +8,12 @@ export const BIFC_POINT = { lat: 35.1465730347207, lon: 129.06589573525582 };
 export const DETOUR = 1.3;
 /** 걸음 속도 (분당 미터, 시속 약 4km) */
 export const METERS_PER_MINUTE = 67;
-/** 목록에 넣을 수 있는 도보 시간 상한(분) */
+/** 도보 15분 안이면 도보로도 찾을 수 있는 가게, 넘으면 차량 전용 가게 */
 export const MAX_WALK_MINUTES = 15;
+/** 목록에 넣을 수 있는 도보 시간 상한(분) */
+export const MAX_LIST_WALK_MINUTES = 60;
+/** 차량 시간이 이보다 길면 알린다 (화면의 차량 거리 최대값과 같다) */
+export const MAX_DRIVE_MINUTES = 30;
 /** 카카오맵 정보가 이 일수보다 오래 갱신되지 않았으면 알린다 */
 export const STALE_DAYS = 365;
 /** 가격이 이 비율 이상 달라지면 알린다 */
@@ -123,8 +127,8 @@ export function mergePlace(current, derived) {
   }
 
   if (derived.walk !== undefined) {
-    if (derived.walk > MAX_WALK_MINUTES) {
-      warnings.push(`도보 ${derived.walk}분으로 ${MAX_WALK_MINUTES}분을 넘어요. 목록에서 빼 주세요`);
+    if (derived.walk > MAX_LIST_WALK_MINUTES || (derived.drive ?? 0) > MAX_DRIVE_MINUTES) {
+      warnings.push(`BIFC에서 너무 멀어요 (도보 ${derived.walk}분, 차량 약 ${derived.drive}분). 목록에서 빼 주세요`);
     } else {
       set("walkMinutes", derived.walk);
     }

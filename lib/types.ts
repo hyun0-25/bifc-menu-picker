@@ -20,8 +20,14 @@ export const RESERVATION_STATUSES = ["가능", "불가", "정보 없음"] as con
 
 export type ReservationStatus = (typeof RESERVATION_STATUSES)[number];
 
-/** 도보 시간 상한(분): BIFC 본사에서 15분 넘게 걸리는 가게는 목록에 넣지 않는다. */
+/** 도보 거리 입력 상한(분): 도보로 찾을 때는 BIFC에서 15분 안의 가게만 고른다. */
 export const MAX_WALK_MINUTES = 15;
+
+/**
+ * 목록에 적을 수 있는 도보 시간 상한(분). 도보 15분을 넘는 가게는 차량 시간(driveMinutes)이 있어야 하고,
+ * 팀 회식에서 차량으로 찾을 때만 후보가 된다.
+ */
+export const MAX_LIST_WALK_MINUTES = 60;
 
 /** 확인하지 못한 값. 짐작해서 숫자를 적지 않고 이 값을 적는다 (Design §3.1). */
 export const UNKNOWN = "정보 없음";

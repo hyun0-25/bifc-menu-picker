@@ -84,6 +84,7 @@ export const SYSTEM_PROMPT = `너는 부산 문현동 BIFC 본사 직원에게 �
 7. 아래 숫자 항목 중 2개 이상을 넣는다. 표기는 반드시 이 모양을 따른다.
    - 1인 가격: "1인 25,000원" (쉼표 있는 아라비아 숫자 + 원)
    - 도보 시간: "도보 5분"
+   - 차량 시간: "차량 약 5분" (입력 조건이 차량 거리일 때는 도보 시간 대신 이것을 쓴다. 후보의 driveMinutes 값)
    - 인원: maxCapacity는 "최대 20명", roomCapacity는 "룸 12명", 입력 인원은 "10명"처럼 무엇의 인원인지 붙여 쓴다
 8. 숫자는 후보에 적힌 값과 입력 인원만 그대로 쓴다. 값을 바꾸거나 어림하지 않는다. "2만 원대", "2만 5천 원" 같은 한글 숫자·어림 표현은 쓰지 않는다. 위 항목 외의 숫자는 쓰지 않는다.
    값이 "정보 없음"인 항목(예: maxCapacity, roomCapacity)은 숫자로 쓰지 않는다. 대신 groupSeating이 true면 "단체석 있음", hasRoom이 true면 "룸 있음"처럼 확인된 사실만 쓸 수 있다.
@@ -127,6 +128,7 @@ export function buildUserMessage(
     menus: r.menus ?? [],
     pricePerPerson: r.pricePerPerson,
     walkMinutes: r.walkMinutes,
+    ...(request.travelMode === "car" && { driveMinutes: r.driveMinutes }),
     maxCapacity: r.maxCapacity,
     hasRoom: r.hasRoom,
     roomCapacity: r.roomCapacity,
