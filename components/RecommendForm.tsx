@@ -79,9 +79,9 @@ type NumberField = (typeof NUMBER_FIELDS)[number];
 const FOCUS_ORDER = [...NUMBER_FIELDS, "extra"] as const;
 
 const inputBase =
-  "h-11 w-full rounded-lg border bg-white px-3 text-base text-zinc-900 placeholder:text-zinc-400 focus:outline-none dark:bg-zinc-900 dark:text-zinc-50";
+  "h-11 w-full rounded-xl border bg-white/90 px-3 text-base text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#5b875c]/25";
 const inputOk =
-  "border-zinc-300 focus:border-zinc-900 dark:border-zinc-700 dark:focus:border-zinc-300";
+  "border-zinc-300 focus:border-[#5b875c]";
 const inputError = "border-red-500 focus:border-red-600 dark:border-red-400";
 
 export default function RecommendForm() {
@@ -187,11 +187,12 @@ export default function RecommendForm() {
     ) : null;
 
   return (
-    <section aria-label="추천 조건" className="flex flex-col gap-3">
+    <section aria-label="추천 조건" className="flex flex-col gap-5">
+      <div className="glass flex flex-col gap-3 p-5 sm:p-7">
       <div
         role="group"
         aria-label="목적"
-        className="grid grid-cols-2 gap-1 rounded-xl bg-zinc-100 p-1 dark:bg-zinc-800"
+        className="grid grid-cols-2 gap-1 rounded-full bg-[rgba(173,196,174,.38)] p-1"
       >
         {PURPOSES.map((p) => {
           const selected = p.value === form.purpose;
@@ -201,10 +202,10 @@ export default function RecommendForm() {
               type="button"
               aria-pressed={selected}
               onClick={() => choosePurpose(p.value)}
-              className={`h-11 rounded-lg text-base font-semibold transition-colors ${
+              className={`h-11 rounded-full text-base font-semibold transition-all ${
                 selected
-                  ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-950 dark:text-zinc-50"
-                  : "text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200"
+                  ? "bg-white text-[#5b875c] shadow-sm"
+                  : "text-zinc-600 hover:text-[#3f6b41]"
               }`}
             >
               {p.label}
@@ -273,8 +274,8 @@ export default function RecommendForm() {
                   onClick={() => toggleCuisine(cuisine)}
                   className={`h-10 rounded-full border px-4 text-sm transition-colors ${
                     selected
-                      ? "border-zinc-900 bg-zinc-900 text-white dark:border-zinc-100 dark:bg-zinc-100 dark:text-zinc-900"
-                      : "border-zinc-300 text-zinc-700 hover:border-zinc-500 dark:border-zinc-700 dark:text-zinc-300"
+                      ? "border-[#5b875c] bg-[#5b875c] text-white shadow-sm"
+                      : "border-white/80 bg-white/70 text-zinc-700 hover:border-[#5b875c] hover:text-[#3f6b41]"
                   }`}
                 >
                   {cuisine}
@@ -328,10 +329,10 @@ export default function RecommendForm() {
                   type="button"
                   aria-pressed={form.travelMode === m.value}
                   onClick={() => update("travelMode", m.value)}
-                  className={`h-11 rounded-lg border text-sm font-semibold transition-colors ${
+                  className={`h-11 rounded-full border text-sm font-semibold transition-colors ${
                     form.travelMode === m.value
-                      ? "border-zinc-900 bg-zinc-900 text-white dark:border-zinc-100 dark:bg-zinc-100 dark:text-zinc-900"
-                      : "border-zinc-300 text-zinc-700 hover:border-zinc-500 dark:border-zinc-700 dark:text-zinc-300"
+                      ? "border-[#5b875c] bg-[#5b875c] text-white shadow-sm"
+                      : "border-white/80 bg-white/70 text-zinc-700 hover:border-[#5b875c] hover:text-[#3f6b41]"
                   }`}
                 >
                   {m.label}
@@ -372,7 +373,7 @@ export default function RecommendForm() {
                   type="checkbox"
                   checked={form.needRoom}
                   onChange={(e) => update("needRoom", e.target.checked)}
-                  className="size-5 accent-zinc-900 dark:accent-zinc-100"
+                  className="size-5 accent-[#5b875c]"
                 />
                 룸(단체석) 필요
               </label>
@@ -382,7 +383,7 @@ export default function RecommendForm() {
                 type="checkbox"
                 checked={form.needReservation}
                 onChange={(e) => update("needReservation", e.target.checked)}
-                className="size-5 accent-zinc-900 dark:accent-zinc-100"
+                className="size-5 accent-[#5b875c]"
               />
               예약 필요
             </label>
@@ -394,7 +395,7 @@ export default function RecommendForm() {
           type="submit"
           disabled={loading}
           aria-busy={loading}
-          className="flex h-12 items-center justify-center gap-2 rounded-xl bg-zinc-900 text-base font-semibold text-white transition-colors hover:bg-zinc-700 disabled:cursor-wait disabled:bg-zinc-500 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300 dark:disabled:bg-zinc-400"
+          className="flex h-13 items-center justify-center gap-2 rounded-full bg-[#5b875c] text-lg font-semibold text-white shadow-[0_6px_18px_rgba(60,100,62,.35)] transition-all hover:-translate-y-0.5 hover:bg-[#4d7550] disabled:cursor-wait disabled:bg-[#8aa78b] disabled:hover:translate-y-0"
         >
           {loading && (
             <span
@@ -405,6 +406,7 @@ export default function RecommendForm() {
           {loading ? "추천 받는 중…" : "추천 받기"}
         </button>
       </form>
+      </div>
 
       {/* 안내·오류 띠 (Design §5.1 ⑤): 화면 읽기 프로그램이 결과·오류를 바로 읽도록 알림 영역에 둔다 */}
       <div aria-live="polite" className="flex flex-col gap-3">

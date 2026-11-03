@@ -46,9 +46,10 @@ npm run refresh:data  # 식당 목록 최신화 미리보기 (반영: -- --write
 ```
 app/
   page.tsx                  # 화면 1개: 제목 + 추천 영역
-  layout.tsx, globals.css   # 제목·언어(ko)·글꼴
+  layout.tsx, globals.css   # 언어(ko)·글꼴(Inter, 제목용 Grandstander·Jua), 배경 장면·유리 패널·등장 애니메이션 스타일
   api/recommend/route.ts    # 서버 API 1개: POST /api/recommend (maxDuration 60초)
 components/
+  SceneBackdrop.tsx         # 화면 전체 배경: 맑은 언덕 그림 + 반복 영상 (모션 줄이기 설정이면 그림만)
   RecommendForm.tsx         # 입력 폼·입력 검사·제출·결과 영역 ("use client")
   ResultCard.tsx            # 추천 결과 카드 (가게 이름·버튼을 누르면 카카오맵 장소 페이지가 새 창으로 열림)
   NoticeBanner.tsx          # 안내(노란)·오류(빨간) 띠

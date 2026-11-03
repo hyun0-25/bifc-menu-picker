@@ -46,16 +46,17 @@ export default function ResultCard({ rank, restaurant: r, onMakeNotice, extraWis
   ];
 
   return (
-    <article className="flex flex-col gap-3 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+    <article className="glass-card enter flex flex-col gap-3 p-5"
+      style={{ "--d": `${(rank - 1) * 0.12}s` } as React.CSSProperties}>
       <header className="flex items-start gap-2">
         <span
           aria-hidden="true"
-          className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-zinc-900 text-xs font-bold text-white dark:bg-zinc-100 dark:text-zinc-900"
+          className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full bg-[#5b875c] text-sm font-bold text-white"
         >
           {rank}
         </span>
         {/* 한글은 단어 단위로 줄을 바꾸되(break-keep), 띄어쓰기 없는 긴 이름은 화면을 넘지 않게 중간에서도 끊는다 */}
-        <h3 className="min-w-0 flex-1 text-lg leading-snug font-bold break-keep [overflow-wrap:anywhere]">
+        <h3 className="min-w-0 flex-1 font-display text-xl leading-snug break-keep [overflow-wrap:anywhere]">
           <span className="sr-only">{rank}위 </span>
           <a
             href={mapUrl(r)}
@@ -68,7 +69,7 @@ export default function ResultCard({ rank, restaurant: r, onMakeNotice, extraWis
             <span className="sr-only"> (카카오맵에서 보기, 새 창)</span>
           </a>
         </h3>
-        <span className="mt-0.5 shrink-0 rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
+        <span className="mt-0.5 shrink-0 rounded-full bg-[rgba(173,196,174,.45)] px-3 py-0.5 text-xs font-medium text-[#3f6b41]">
           {r.cuisine}
         </span>
       </header>
@@ -88,13 +89,13 @@ export default function ResultCard({ rank, restaurant: r, onMakeNotice, extraWis
         href={mapUrl(r)}
         target="_blank"
         rel="noopener noreferrer"
-        className="flex h-10 items-center justify-center rounded-lg bg-zinc-100 text-sm font-semibold text-zinc-800 transition-colors hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700"
+        className="flex h-10 items-center justify-center rounded-full bg-[rgba(204,218,173,.55)] text-sm font-semibold text-[#3f6b41] transition-colors hover:bg-[rgba(204,218,173,.85)]"
       >
         📍 카카오맵에서 위치 보기
       </a>
 
       {extraWish && (
-        <p className="rounded-lg bg-zinc-100 px-3 py-2 text-sm break-keep text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
+        <p className="rounded-xl bg-[rgba(173,196,174,.28)] px-3 py-2 text-sm break-keep text-zinc-700">
           <span className="font-semibold">AI가 본 취향 근거(참고) ·</span>{" "}
           {r.matchedMenus && r.matchedMenus.length > 0
             ? `${r.matchedMenus.join(", ")} 메뉴가 있어요`
@@ -106,7 +107,7 @@ export default function ResultCard({ rank, restaurant: r, onMakeNotice, extraWis
         <button
           type="button"
           onClick={onMakeNotice}
-          className="h-11 rounded-lg border border-zinc-300 text-sm font-semibold text-zinc-800 transition-colors hover:border-zinc-500 dark:border-zinc-700 dark:text-zinc-200"
+          className="h-11 rounded-full border border-[#5b875c]/50 text-sm font-semibold text-[#3f6b41] transition-colors hover:border-[#5b875c] hover:bg-white"
         >
           이 가게로 회식 공지문 만들기
         </button>

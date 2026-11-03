@@ -27,7 +27,7 @@ export default function NoticeBanner({ variant, title, children }: Props) {
   return (
     <div
       role={variant === "error" ? "alert" : "status"}
-      className={`flex items-start gap-3 rounded-xl border px-4 py-3 ${style.box}`}
+      className={`flex items-start gap-3 rounded-2xl border px-4 py-3 shadow-[0_8px_22px_rgba(20,50,90,.18)] backdrop-blur-md ${style.box}`}
     >
       <span
         aria-hidden="true"

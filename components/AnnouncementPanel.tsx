@@ -34,7 +34,7 @@ export default function AnnouncementPanel({ restaurant, people, onClose }: Props
   return (
     <section
       aria-label="회식 공지문"
-      className="flex flex-col gap-3 rounded-2xl border border-zinc-300 bg-zinc-50 p-4 dark:border-zinc-700 dark:bg-zinc-900"
+      className="glass flex flex-col gap-3 p-5"
     >
       <header className="flex items-center justify-between gap-2">
         <h3 className="text-base font-bold">회식 공지문 · {restaurant.name}</h3>
@@ -82,7 +82,7 @@ export default function AnnouncementPanel({ restaurant, people, onClose }: Props
       <button
         type="button"
         onClick={copy}
-        className="h-12 rounded-xl bg-zinc-900 text-base font-semibold text-white transition-colors hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
+        className="h-12 rounded-full bg-[#5b875c] text-base font-semibold text-white shadow-[0_6px_18px_rgba(60,100,62,.3)] transition-all hover:-translate-y-0.5 hover:bg-[#4d7550]"
       >
         공지문 복사
       </button>
