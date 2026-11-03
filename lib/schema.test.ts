@@ -45,11 +45,11 @@ describe("올바른 요청", () => {
     expect(result.ok && result.request.maxWalkMinutes).toBeUndefined();
   });
 
-  it("점심이면 룸·예약 체크가 남아 있어도 무시한다", () => {
+  it("점심이면 룸 체크는 무시하고 예약 체크는 그대로 둔다", () => {
     const result = parseRecommendRequest({ ...valid, purpose: "lunch" });
     expect(result.ok && [result.request.needRoom, result.request.needReservation]).toEqual([
       false,
-      false,
+      true,
     ]);
   });
 
@@ -177,8 +177,8 @@ describe("validateFormValues (화면 입력)", () => {
     });
   });
 
-  it("점심이면 룸·예약 체크가 남아 있어도 보내지 않는다", () => {
-    const result = validateFormValues({ ...form, purpose: "lunch", needReservation: true });
-    expect(result.ok && [result.request.needRoom, result.request.needReservation]).toEqual([false, false]);
+  it("점심이면 룸 체크는 보내지 않고 예약 체크는 보낸다", () => {
+    const result = validateFormValues({ ...form, purpose: "lunch", needRoom: true, needReservation: true });
+    expect(result.ok && [result.request.needRoom, result.request.needReservation]).toEqual([false, true]);
   });
 });

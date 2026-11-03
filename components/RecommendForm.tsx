@@ -111,8 +111,8 @@ export default function RecommendForm() {
 
   const choosePurpose = (next: Purpose) => {
     update("purpose", next);
-    // 룸·예약은 팀 회식에서만 묻는다. 점심으로 바꾸면 체크를 지워 다른 목적의 값이 남지 않게 한다.
-    if (next === "lunch") setForm((prev) => ({ ...prev, needRoom: false, needReservation: false }));
+    // 룸은 팀 회식에서만 묻는다. 점심으로 바꾸면 룸 체크를 지워 다른 목적의 값이 남지 않게 한다. (예약은 점심에도 묻는다)
+    if (next === "lunch") setForm((prev) => ({ ...prev, needRoom: false }));
   };
 
   const toggleCuisine = (cuisine: Cuisine) =>
@@ -329,10 +329,10 @@ export default function RecommendForm() {
           </div>
         </div>
 
-        {form.purpose === "dinner" && (
-          <fieldset className="flex flex-col gap-2">
-            <legend className="mb-1.5 text-sm font-medium">회식 조건</legend>
-            <div className="flex flex-wrap gap-x-6 gap-y-2">
+        <fieldset className="flex flex-col gap-2">
+          <legend className="mb-1.5 text-sm font-medium">{form.purpose === "dinner" ? "회식 조건" : "예약 조건"}</legend>
+          <div className="flex flex-wrap gap-x-6 gap-y-2">
+            {form.purpose === "dinner" && (
               <label className="flex min-h-11 cursor-pointer items-center gap-2 text-base">
                 <input
                   type="checkbox"
@@ -342,18 +342,18 @@ export default function RecommendForm() {
                 />
                 룸(단체석) 필요
               </label>
-              <label className="flex min-h-11 cursor-pointer items-center gap-2 text-base">
-                <input
-                  type="checkbox"
-                  checked={form.needReservation}
-                  onChange={(e) => update("needReservation", e.target.checked)}
-                  className="size-5 accent-zinc-900 dark:accent-zinc-100"
-                />
-                예약 필요
-              </label>
-            </div>
-          </fieldset>
-        )}
+            )}
+            <label className="flex min-h-11 cursor-pointer items-center gap-2 text-base">
+              <input
+                type="checkbox"
+                checked={form.needReservation}
+                onChange={(e) => update("needReservation", e.target.checked)}
+                className="size-5 accent-zinc-900 dark:accent-zinc-100"
+              />
+              예약 필요
+            </label>
+          </div>
+        </fieldset>
 
         {fieldError("form")}
         <button

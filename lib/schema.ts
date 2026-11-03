@@ -168,10 +168,8 @@ export const recommendRequestSchema = z
     },
     { error: "정해지지 않은 항목이 들어 있습니다" },
   )
-  // PRD 4장: 룸·예약 조건은 팀 회식에서만 묻는다. 점심이면 화면에 남은 체크 값이 와도 무시한다.
-  .transform((request) =>
-    request.purpose === "lunch" ? { ...request, needRoom: false, needReservation: false } : request,
-  );
+  // 룸 조건은 팀 회식에서만 묻는다. 점심이면 화면에 남은 룸 체크 값이 와도 무시한다. (예약 조건은 점심에도 쓴다)
+  .transform((request) => (request.purpose === "lunch" ? { ...request, needRoom: false } : request));
 
 export type RequestValidationResult =
   | { ok: true; request: RecommendRequest }

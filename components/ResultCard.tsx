@@ -8,6 +8,12 @@ const RESERVATION_LABEL: Record<ReservationStatus, string> = {
   "정보 없음": "예약 정보 없음",
 };
 
+/** 카카오맵 장소 페이지 주소. 목록의 출처(source)가 카카오맵이면 그대로, 아니면 가게 이름 검색 주소 */
+function mapUrl(r: Recommendation): string {
+  if (r.source?.startsWith("https://place.map.kakao.com/")) return r.source;
+  return `https://map.kakao.com/link/search/${encodeURIComponent(r.name)}`;
+}
+
 type Props = {
   /** 추천 순위 (1부터) */
   rank: number;
@@ -50,7 +56,16 @@ export default function ResultCard({ rank, restaurant: r, onMakeNotice, extraWis
         {/* 한글은 단어 단위로 줄을 바꾸되(break-keep), 띄어쓰기 없는 긴 이름은 화면을 넘지 않게 중간에서도 끊는다 */}
         <h3 className="min-w-0 flex-1 text-lg leading-snug font-bold break-keep [overflow-wrap:anywhere]">
           <span className="sr-only">{rank}위 </span>
-          {r.name}
+          <a
+            href={mapUrl(r)}
+            target="_blank"
+            rel="noopener noreferrer"
+            title="카카오맵에서 위치와 가게 정보 보기"
+            className="underline decoration-zinc-300 underline-offset-4 hover:decoration-zinc-600 dark:decoration-zinc-600"
+          >
+            {r.name}
+            <span className="sr-only"> (카카오맵에서 보기, 새 창)</span>
+          </a>
         </h3>
         <span className="mt-0.5 shrink-0 rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
           {r.cuisine}
@@ -67,6 +82,15 @@ export default function ResultCard({ rank, restaurant: r, onMakeNotice, extraWis
           </div>
         ))}
       </dl>
+
+      <a
+        href={mapUrl(r)}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="flex h-10 items-center justify-center rounded-lg bg-zinc-100 text-sm font-semibold text-zinc-800 transition-colors hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700"
+      >
+        📍 카카오맵에서 위치 보기
+      </a>
 
       {extraWish && (
         <p className="rounded-lg bg-zinc-100 px-3 py-2 text-sm break-keep text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">

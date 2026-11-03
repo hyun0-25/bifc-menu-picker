@@ -50,7 +50,7 @@ app/
   api/recommend/route.ts    # 서버 API 1개: POST /api/recommend (maxDuration 60초)
 components/
   RecommendForm.tsx         # 입력 폼·입력 검사·제출·결과 영역 ("use client")
-  ResultCard.tsx            # 추천 결과 카드
+  ResultCard.tsx            # 추천 결과 카드 (가게 이름·버튼을 누르면 카카오맵 장소 페이지가 새 창으로 열림)
   NoticeBanner.tsx          # 안내(노란)·오류(빨간) 띠
   AnnouncementPanel.tsx     # 회식 공지문 패널 (nice, 팀 회식 결과에서만)
 lib/
@@ -93,7 +93,7 @@ scripts/refresh-*.mjs       # 식당 목록 자동 갱신 도구 (작성자용 �
 ### 서버 코드(`lib/filter.ts`)에서 먼저 거른다 (AI 호출 전)
 1. 1인 가격 > 입력 예산 → 제외
 2. 인원: 최대 인원이 숫자면 입력 인원과 비교. **`"정보 없음"`이면 4명 이하만 통과**, 5명 이상은 단체석 표시(`groupSeating`) 또는 룸 확인이 있어야 통과
-3. 룸 필요 시 `hasRoom: true`인 가게만 (`"정보 없음"`은 제외), 룸 인원을 알면 입력 인원 이상
+3. (룸 조건은 회식에서만 묻는다. 예약 조건은 점심에도 묻는다) 룸 필요 시 `hasRoom: true`인 가게만 (`"정보 없음"`은 제외), 룸 인원을 알면 입력 인원 이상
 4. 예약 필요 시 `예약 가능`인 가게만 남김 (`불가`·`정보 없음` 제외)
 5. 도보 시간 > 입력 거리 → 제외. 미입력 시 기본값 **점심 10분 / 회식 15분**
 6. 메뉴 취향은 **필터가 아니라 "되도록"** 기준이다. AI가 우선해서 고른다.
