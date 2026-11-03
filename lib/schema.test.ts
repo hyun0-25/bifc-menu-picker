@@ -136,6 +136,7 @@ describe("validateFormValues (화면 입력)", () => {
     maxWalkMinutes: "",
     needRoom: true,
     needReservation: false,
+    extra: "",
   };
 
   it("올바른 입력은 서버에 보낼 요청으로 바뀐다 (빈 도보 거리는 기본값)", () => {

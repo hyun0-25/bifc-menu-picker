@@ -14,9 +14,11 @@ type Props = {
   restaurant: Recommendation;
   /** 팀 회식 결과에서만 넘긴다. 있으면 "회식 공지문 만들기" 버튼을 보여 준다 */
   onMakeNotice?: () => void;
+  /** 이번에 입력한 추가 조건. 있으면 "취향 근거"(맞다고 본 메뉴)를 보여 준다 */
+  extraWish?: string;
 };
 
-export default function ResultCard({ rank, restaurant: r, onMakeNotice }: Props) {
+export default function ResultCard({ rank, restaurant: r, onMakeNotice, extraWish }: Props) {
   const details = [
     { label: "1인 가격", value: `${r.pricePerPerson.toLocaleString("ko-KR")}원` },
     { label: "도보", value: `${r.walkMinutes}분` },
@@ -65,6 +67,15 @@ export default function ResultCard({ rank, restaurant: r, onMakeNotice }: Props)
           </div>
         ))}
       </dl>
+
+      {extraWish && (
+        <p className="rounded-lg bg-zinc-100 px-3 py-2 text-sm break-keep text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
+          <span className="font-semibold">AI가 본 취향 근거(참고) ·</span>{" "}
+          {r.matchedMenus && r.matchedMenus.length > 0
+            ? `${r.matchedMenus.join(", ")} 메뉴가 있어요`
+            : "추가 조건과 직접 맞는 메뉴 정보는 없어요"}
+        </p>
+      )}
 
       {onMakeNotice && (
         <button

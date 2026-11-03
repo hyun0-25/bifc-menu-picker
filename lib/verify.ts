@@ -1,6 +1,7 @@
 // Design Ref: §2.2 처리 9~11 — AI 답 검사와 추천 결과 마무리 (후보 대조·값 덮어쓰기·3곳 채우기·기본 문장·안내 문구)
 // AI 호출 자체는 lib/ai.ts가 맡고, 이 파일은 AI 답을 받아 검사·보정만 한다 (서버 전용 코드에 의존하지 않음).
 import {
+  MAX_MATCHED_MENUS,
   UNKNOWN,
   type AiPick,
   type Cuisine,
@@ -81,6 +82,19 @@ export function chooseNotice(candidateCount: number, resultCount: number): strin
 
 // ── AI 답 검사 (PLAN 작업 11) ──────────────────────────────────────
 
+/**
+ * AI가 말한 "추가 조건의 근거 메뉴" 중, 그 가게의 menus에 실제로 적힌 이름만 남긴다 (최대 3개).
+ * 목록에 없는 메뉴 이름은 지어낸 것으로 보고 버린다.
+ */
+export function validMatchedMenus(
+  names: readonly string[] | undefined,
+  restaurant: Pick<Restaurant, "menus">,
+): string[] {
+  const own = new Set(restaurant.menus ?? []);
+  const unique = [...new Set((names ?? []).map((name) => name.trim()))];
+  return unique.filter((name) => own.has(name)).slice(0, MAX_MATCHED_MENUS);
+}
+
 export type CheckedPicks = {
   /** 검사를 통과한 가게. 이유만 AI 글이고 나머지 값은 모두 목록(후보) 값이다. */
   recommendations: Recommendation[];
@@ -116,7 +130,12 @@ export function checkAiPicks(picks: readonly AiPick[], candidates: readonly Rest
       continue;
     }
     used.add(pick.id);
-    recommendations.push({ ...candidate, reason: pick.reason.trim() });
+    const matched = validMatchedMenus(pick.matchedMenus, candidate);
+    recommendations.push({
+      ...candidate,
+      reason: pick.reason.trim(),
+      ...(matched.length > 0 && { matchedMenus: matched }),
+    });
   }
   return { recommendations, problems };
 }

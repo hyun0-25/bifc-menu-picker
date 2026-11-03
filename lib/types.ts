@@ -41,6 +41,8 @@ export type Restaurant = {
   name: string;
   /** 메뉴 종류 */
   cuisine: Cuisine;
+  /** 대표 메뉴 이름 (카카오맵 메뉴판 앞부분). 추가 조건("매콤한" 등)을 판단하는 근거로만 쓴다. 없으면 생략 */
+  menus?: string[];
   /** 1인 대표 가격(원) */
   pricePerPerson: number;
   /** BIFC 본사에서 걸어서 걸리는 시간(분), 1~15 */
@@ -90,16 +92,23 @@ export const INPUT_LIMITS = {
   people: { min: 1, max: 30 },
   budget: { min: 5_000, max: 200_000 },
   maxWalkMinutes: { min: 1, max: MAX_WALK_MINUTES },
+  /** 추가 조건(자연어) 최대 글자 수 */
+  extra: { max: 60 },
 } as const;
 
-/** 추천 요청 (화면 → 서버): 필터 조건 + 메뉴 취향 */
+/** 추천 요청 (화면 → 서버): 필터 조건 + 메뉴 취향 + 추가 조건 */
 export type RecommendRequest = FilterConditions & {
   /** 메뉴 취향. 비어 있으면 "상관없음" (필터가 아니라 AI가 우선해서 고르는 기준) */
   cuisines: Cuisine[];
+  /** 추가 조건(자연어, 예: "매콤한, 느끼하지 않은"). 필터가 아니라 AI가 우선해서 고르는 참고 기준. 없으면 생략 */
+  extra?: string;
 };
 
-/** AI 답 하나: 고른 가게 id와 이유 (나머지 값은 코드가 목록에서 채운다) */
-export type AiPick = { id: string; reason: string };
+/** 추가 조건과 맞다고 보여 줄 수 있는 근거 메뉴의 최대 개수 */
+export const MAX_MATCHED_MENUS = 3;
+
+/** AI 답 하나: 고른 가게 id와 이유, 추가 조건의 근거 메뉴 (나머지 값은 코드가 목록에서 채운다) */
+export type AiPick = { id: string; reason: string; matchedMenus?: string[] };
 
 // Design Ref: §3.3·§4 — 서버 → 화면 응답
 
@@ -107,6 +116,8 @@ export type AiPick = { id: string; reason: string };
 export type Recommendation = Restaurant & {
   /** 추천 이유 1줄 (AI가 쓴 글 또는 코드가 만든 기본 문장) */
   reason: string;
+  /** 추가 조건과 맞다고 본 근거 메뉴. 반드시 이 가게의 menus에 있는 이름만 들어간다 (없으면 생략) */
+  matchedMenus?: string[];
 };
 
 /** 추천 결과 응답 (200) */

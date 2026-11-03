@@ -34,6 +34,18 @@ export const restaurantSchema = z.strictObject(
     cuisine: z.enum(CUISINES, {
       error: `메뉴 종류는 ${CUISINES.join("·")} 중 하나여야 합니다`,
     }),
+    menus: z
+      .array(
+        z
+          .string({ error: "메뉴 이름은 글자여야 합니다" })
+          .trim()
+          .min(1, { error: "메뉴 이름이 비어 있습니다" })
+          .max(30, { error: "메뉴 이름은 30자 이내여야 합니다" }),
+        { error: "대표 메뉴는 메뉴 이름의 목록 [ ]이어야 합니다" },
+      )
+      .min(1, { error: "대표 메뉴를 적으려면 1개 이상 필요합니다 (없으면 항목을 빼세요)" })
+      .max(8, { error: "대표 메뉴는 8개까지 적을 수 있습니다" })
+      .optional(),
     pricePerPerson: z
       .number({ error: "1인 가격은 숫자(원)여야 합니다" })
       .int({ error: "1인 가격은 정수(원)여야 합니다" })
@@ -82,7 +94,13 @@ export const restaurantSchema = z.strictObject(
 
 // ── 추천 요청(입력 조건) ─────────────────────────────────────────────
 
-const { people, budget, maxWalkMinutes } = INPUT_LIMITS;
+const { people, budget, maxWalkMinutes, extra } = INPUT_LIMITS;
+
+/**
+ * 추가 조건(자유 입력)에 들어오면 안 되는 개인정보 모양: 이메일(@), 7자리 이상 숫자, 전화번호 모양.
+ * 이름은 걸러 낼 수 없어서 화면에 "개인정보를 적지 마세요" 안내를 함께 보여 준다.
+ */
+const PERSONAL_INFO_PATTERN = /@|\d{7,}|\d{2,4}[-.\s]\d{3,4}[-.\s]\d{4}/;
 
 /** 정수 범위 검사. 숫자가 아니거나 범위 밖이면 같은 안내 문구를 쓴다. */
 function intInRange(min: number, max: number, message: string) {
@@ -127,6 +145,20 @@ export const recommendRequestSchema = z
         .transform((value) => value ?? undefined),
       needRoom: z.boolean({ error: "룸 필요 여부가 올바르지 않습니다" }).default(false),
       needReservation: z.boolean({ error: "예약 필요 여부가 올바르지 않습니다" }).default(false),
+      // 추가 조건(자연어): 줄바꿈·연속 공백을 정리하고, 길이와 개인정보 모양을 검사한다. 비면 없는 것으로 본다.
+      extra: z
+        .string({ error: "추가 조건은 글자로 입력해 주세요" })
+        .nullish()
+        .transform((value) => (value ?? "").replace(/\s+/g, " ").trim())
+        .pipe(
+          z
+            .string()
+            .max(extra.max, { error: `추가 조건은 ${extra.max}자 이내로 적어 주세요` })
+            .refine((value) => !PERSONAL_INFO_PATTERN.test(value), {
+              error: "연락처·이메일 같은 개인정보는 적지 마세요",
+            }),
+        )
+        .transform((value) => value || undefined),
     },
     { error: "정해지지 않은 항목이 들어 있습니다" },
   )
@@ -168,6 +200,8 @@ export type FormValues = {
   maxWalkMinutes: string;
   needRoom: boolean;
   needReservation: boolean;
+  /** 추가 조건(자연어). 비워 둘 수 있다 */
+  extra: string;
 };
 
 /** 비어 있으면 안 되는 칸의 안내 */
@@ -190,6 +224,7 @@ export function validateFormValues(values: FormValues): RequestValidationResult 
     maxWalkMinutes: toNumber(values.maxWalkMinutes),
     needRoom: values.needRoom,
     needReservation: values.needReservation,
+    extra: values.extra,
   };
 
   const result = parseRecommendRequest(body);

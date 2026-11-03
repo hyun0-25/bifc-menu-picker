@@ -66,11 +66,14 @@ const EMPTY_FORM: FormValues = {
   maxWalkMinutes: "",
   needRoom: false,
   needReservation: false,
+  extra: "",
 };
 
 /** 입력 칸 순서 (검사 실패 시 첫 번째로 틀린 칸에 커서를 옮길 때 쓴다) */
 const NUMBER_FIELDS = ["people", "budget", "maxWalkMinutes"] as const;
 type NumberField = (typeof NUMBER_FIELDS)[number];
+/** 검사 실패 시 커서를 옮길 칸의 순서 (추가 조건 칸은 맨 뒤) */
+const FOCUS_ORDER = [...NUMBER_FIELDS, "extra"] as const;
 
 const inputBase =
   "h-11 w-full rounded-lg border bg-white px-3 text-base text-zinc-900 placeholder:text-zinc-400 focus:outline-none dark:bg-zinc-900 dark:text-zinc-50";
@@ -85,7 +88,7 @@ export default function RecommendForm() {
   /** 마지막으로 받은 추천 결과 */
   const [response, setResponse] = useState<RecommendResponse | null>(null);
   /** 결과를 받을 때 보낸 목적·인원 (공지문 만들기에 쓴다) */
-  const [submitted, setSubmitted] = useState<{ purpose: Purpose; people: number } | null>(null);
+  const [submitted, setSubmitted] = useState<{ purpose: Purpose; people: number; extra?: string } | null>(null);
   /** 공지문을 만드는 중인 가게 id */
   const [noticeFor, setNoticeFor] = useState<string | null>(null);
   /** 서버·AI 오류 문구 */
@@ -123,7 +126,7 @@ export default function RecommendForm() {
   /** 칸별 안내를 보여 주고 첫 번째로 틀린 칸에 커서를 옮긴다 (화면 읽기 프로그램도 안내를 바로 읽게) */
   const showFieldErrors = (fields: Record<string, string>) => {
     setErrors(fields);
-    const first = NUMBER_FIELDS.find((field) => field in fields);
+    const first = FOCUS_ORDER.find((field) => field in fields);
     if (first) document.getElementById(`${id}-${first}`)?.focus();
   };
 
@@ -146,7 +149,11 @@ export default function RecommendForm() {
     if (result.kind === "ok") {
       setResponse(result.data);
       // 공지문은 "이번에 받은 결과"의 목적·인원 기준으로 만든다 (그 뒤에 폼을 고쳐도 결과와 어긋나지 않게)
-      setSubmitted({ purpose: checked.request.purpose, people: checked.request.people });
+      setSubmitted({
+        purpose: checked.request.purpose,
+        people: checked.request.people,
+        extra: checked.request.extra,
+      });
       setNoticeFor(null);
     } else if (result.kind === "invalid") showFieldErrors(result.fields);
     else setRequestError(result.message);
@@ -270,6 +277,34 @@ export default function RecommendForm() {
           {fieldError("cuisines")}
         </fieldset>
 
+        {/* 추가 조건(자연어): 필터가 아니라 AI가 메뉴 이름을 보고 우선해서 고르는 참고 기준 */}
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor={`${id}-extra`} className="text-sm font-medium">
+            추가로 원하는 점 <span className="font-normal text-zinc-500">(선택)</span>
+          </label>
+          <input
+            id={`${id}-extra`}
+            type="text"
+            maxLength={INPUT_LIMITS.extra.max + 20}
+            autoComplete="off"
+            placeholder="예: MZ가 좋아할 만한, 느끼하지 않은, 매콤한"
+            value={form.extra}
+            onChange={(e) => update("extra", e.target.value)}
+            aria-invalid={"extra" in errors}
+            aria-describedby={`${id}-extra-hint${"extra" in errors ? ` ${id}-extra-error` : ""}`}
+            className={`${inputBase} ${"extra" in errors ? inputError : inputOk}`}
+          />
+          <p id={`${id}-extra-hint`} className="flex justify-between gap-3 text-xs text-zinc-500 dark:text-zinc-400">
+            <span>
+              가게의 메뉴 이름을 보고 AI가 참고만 해요. 이름·연락처 같은 개인정보는 적지 마세요.
+            </span>
+            <span className="shrink-0" aria-hidden="true">
+              {form.extra.length}/{INPUT_LIMITS.extra.max}
+            </span>
+          </p>
+          {fieldError("extra")}
+        </div>
+
         <div className="grid grid-cols-2 gap-3">
           <div className="col-span-2 flex flex-col gap-1.5 sm:col-span-1">
             <label htmlFor={`${id}-maxWalkMinutes`} className="text-sm font-medium">
@@ -377,6 +412,7 @@ export default function RecommendForm() {
               rank={index + 1}
               restaurant={r}
               onMakeNotice={submitted?.purpose === "dinner" ? () => setNoticeFor(r.id) : undefined}
+              extraWish={submitted?.extra}
             />
           ))}
         </section>
