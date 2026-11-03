@@ -12,9 +12,11 @@ type Props = {
   /** 추천 순위 (1부터) */
   rank: number;
   restaurant: Recommendation;
+  /** 팀 회식 결과에서만 넘긴다. 있으면 "회식 공지문 만들기" 버튼을 보여 준다 */
+  onMakeNotice?: () => void;
 };
 
-export default function ResultCard({ rank, restaurant: r }: Props) {
+export default function ResultCard({ rank, restaurant: r, onMakeNotice }: Props) {
   const details = [
     { label: "1인 가격", value: `${r.pricePerPerson.toLocaleString("ko-KR")}원` },
     { label: "도보", value: `${r.walkMinutes}분` },
@@ -63,6 +65,16 @@ export default function ResultCard({ rank, restaurant: r }: Props) {
           </div>
         ))}
       </dl>
+
+      {onMakeNotice && (
+        <button
+          type="button"
+          onClick={onMakeNotice}
+          className="h-11 rounded-lg border border-zinc-300 text-sm font-semibold text-zinc-800 transition-colors hover:border-zinc-500 dark:border-zinc-700 dark:text-zinc-200"
+        >
+          이 가게로 회식 공지문 만들기
+        </button>
+      )}
     </article>
   );
 }

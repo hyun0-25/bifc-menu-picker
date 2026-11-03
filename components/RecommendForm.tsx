@@ -4,6 +4,7 @@
 // 구성(PLAN 작업 15~20): 목적 선택 + 조건 입력 폼 + 입력 검사 + 제출 + 안내·오류 띠 + 결과 카드.
 import { useId, useState, type ChangeEvent, type FormEvent } from "react";
 import NoticeBanner from "@/components/NoticeBanner";
+import AnnouncementPanel from "@/components/AnnouncementPanel";
 import ResultCard from "@/components/ResultCard";
 import { validateFormValues, type FormValues } from "@/lib/schema";
 import {
@@ -83,6 +84,10 @@ export default function RecommendForm() {
   const [loading, setLoading] = useState(false);
   /** 마지막으로 받은 추천 결과 */
   const [response, setResponse] = useState<RecommendResponse | null>(null);
+  /** 결과를 받을 때 보낸 목적·인원 (공지문 만들기에 쓴다) */
+  const [submitted, setSubmitted] = useState<{ purpose: Purpose; people: number } | null>(null);
+  /** 공지문을 만드는 중인 가게 id */
+  const [noticeFor, setNoticeFor] = useState<string | null>(null);
   /** 서버·AI 오류 문구 */
   const [requestError, setRequestError] = useState<string | null>(null);
   const id = useId();
@@ -138,8 +143,12 @@ export default function RecommendForm() {
     const result = await requestRecommendation(checked.request);
     setLoading(false);
 
-    if (result.kind === "ok") setResponse(result.data);
-    else if (result.kind === "invalid") showFieldErrors(result.fields);
+    if (result.kind === "ok") {
+      setResponse(result.data);
+      // 공지문은 "이번에 받은 결과"의 목적·인원 기준으로 만든다 (그 뒤에 폼을 고쳐도 결과와 어긋나지 않게)
+      setSubmitted({ purpose: checked.request.purpose, people: checked.request.people });
+      setNoticeFor(null);
+    } else if (result.kind === "invalid") showFieldErrors(result.fields);
     else setRequestError(result.message);
   };
 
@@ -363,9 +372,29 @@ export default function RecommendForm() {
           className={`flex flex-col gap-3 transition-opacity ${loading ? "opacity-50" : ""}`}
         >
           {response.recommendations.map((r, index) => (
-            <ResultCard key={r.id} rank={index + 1} restaurant={r} />
+            <ResultCard
+              key={r.id}
+              rank={index + 1}
+              restaurant={r}
+              onMakeNotice={submitted?.purpose === "dinner" ? () => setNoticeFor(r.id) : undefined}
+            />
           ))}
         </section>
+      )}
+
+      {/* 회식 공지문 (nice): 팀 회식 결과에서 카드의 버튼을 눌렀을 때만 */}
+      {!requestError && submitted && noticeFor && (
+        (() => {
+          const target = response?.recommendations.find((r) => r.id === noticeFor);
+          return target ? (
+            <AnnouncementPanel
+              key={target.id}
+              restaurant={target}
+              people={submitted.people}
+              onClose={() => setNoticeFor(null)}
+            />
+          ) : null;
+        })()
       )}
     </section>
   );
