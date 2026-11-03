@@ -3,7 +3,7 @@
 import "server-only";
 import OpenAI from "openai";
 import { z } from "zod";
-import { resolveMaxWalkMinutes } from "./filter";
+import { resolveMaxDriveMinutes, resolveMaxWalkMinutes } from "./filter";
 import type { AiPick, RecommendRequest, Restaurant } from "./types";
 import { MAX_SAME_CUISINE, RECOMMEND_COUNT } from "./verify";
 
@@ -112,7 +112,9 @@ export function buildUserMessage(
     인원: request.people,
     "1인 예산(원)": request.budget,
     "메뉴 취향": request.cuisines.length > 0 ? request.cuisines : "상관없음",
-    "도보 거리(분 이내)": resolveMaxWalkMinutes(request),
+    ...(request.travelMode === "car"
+      ? { "차량 거리(분 이내)": resolveMaxDriveMinutes(request) }
+      : { "도보 거리(분 이내)": resolveMaxWalkMinutes(request) }),
     "룸 필요": request.needRoom,
     "예약 필요": request.needReservation,
     // 사용자가 쓴 문장은 JSON 문자열로 넣어 줄바꿈·따옴표가 지시문처럼 섞이지 않게 한다

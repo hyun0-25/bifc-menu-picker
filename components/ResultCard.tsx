@@ -28,6 +28,7 @@ export default function ResultCard({ rank, restaurant: r, onMakeNotice, extraWis
   const details = [
     { label: "1인 가격", value: `${r.pricePerPerson.toLocaleString("ko-KR")}원` },
     { label: "도보", value: `${r.walkMinutes}분` },
+    ...(r.driveMinutes !== undefined ? [{ label: "차량", value: `약 ${r.driveMinutes}분` }] : []),
     { label: "최대 인원", value: r.maxCapacity === UNKNOWN ? UNKNOWN : `${r.maxCapacity}명` },
     { label: "단체석", value: r.groupSeating ? "있음" : "표시 없음" },
     {

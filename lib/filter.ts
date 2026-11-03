@@ -1,7 +1,9 @@
 // Design Ref: §2.2 처리 6 — AI를 부르기 전에 코드로 조건을 거른다 (PRD must ① 규칙 3~6)
 // Plan SC: SC-2 조건 준수 100% — 이 함수를 통과한 가게만 AI에 후보로 보낸다.
 import {
+  DEFAULT_DRIVE_MINUTES,
   DEFAULT_WALK_MINUTES,
+  INPUT_LIMITS,
   MAX_WALK_MINUTES,
   SMALL_GROUP_LIMIT,
   UNKNOWN,
@@ -33,10 +35,18 @@ export function resolveMaxWalkMinutes(conditions: FilterConditions): number {
   return conditions.maxWalkMinutes ?? DEFAULT_WALK_MINUTES[conditions.purpose];
 }
 
+/** 실제로 적용할 차량 이동 시간(분): 입력값이 없으면 기본값 */
+export function resolveMaxDriveMinutes(conditions: FilterConditions): number {
+  return conditions.maxDriveMinutes ?? DEFAULT_DRIVE_MINUTES;
+}
+
+/** 이동 수단에 따른 이동 시간(분). 차량 시간을 모르는 가게는 undefined */
+function travelMinutes(restaurant: Restaurant, conditions: FilterConditions): number | undefined {
+  return conditions.travelMode === "car" ? restaurant.driveMinutes : restaurant.walkMinutes;
+}
+
 /** 한 가게가 조건을 모두 만족하는지 */
 export function matchesConditions(restaurant: Restaurant, conditions: FilterConditions): boolean {
-  const maxWalk = resolveMaxWalkMinutes(conditions);
-
   // 규칙 3: 1인 가격이 예산을 넘으면 제외 (같으면 통과)
   if (restaurant.pricePerPerson > conditions.budget) return false;
 
@@ -49,8 +59,11 @@ export function matchesConditions(restaurant: Restaurant, conditions: FilterCond
   // 규칙 5: 예약이 필요하면 "가능"만 통과 ("불가", "정보 없음" 제외)
   if (conditions.needReservation && restaurant.reservation !== "가능") return false;
 
-  // 규칙 6: 도보 시간이 거리를 넘으면 제외 (같으면 통과)
-  if (restaurant.walkMinutes > maxWalk) return false;
+  // 규칙 6: 이동 시간이 거리를 넘으면 제외 (같으면 통과). 차량이면 차량 시간, 아니면 도보 시간
+  const minutes = travelMinutes(restaurant, conditions);
+  const limit =
+    conditions.travelMode === "car" ? resolveMaxDriveMinutes(conditions) : resolveMaxWalkMinutes(conditions);
+  if (minutes === undefined || minutes > limit) return false;
 
   return true;
 }
@@ -65,7 +78,7 @@ export function filterCandidates(
 ): Restaurant[] {
   return restaurants
     .filter((restaurant) => matchesConditions(restaurant, conditions))
-    .sort((a, b) => a.walkMinutes - b.walkMinutes);
+    .sort((a, b) => (travelMinutes(a, conditions) ?? 0) - (travelMinutes(b, conditions) ?? 0));
 }
 
 /**
@@ -92,7 +105,14 @@ export function relaxationHints(
       conditions: { ...conditions, needRoom: false, needReservation: false },
     });
   }
-  if (resolveMaxWalkMinutes(conditions) < MAX_WALK_MINUTES) {
+  if (conditions.travelMode === "car") {
+    if (resolveMaxDriveMinutes(conditions) < INPUT_LIMITS.maxDriveMinutes.max) {
+      variants.push({
+        label: `차량 거리를 ${INPUT_LIMITS.maxDriveMinutes.max}분까지 넓히면`,
+        conditions: { ...conditions, maxDriveMinutes: INPUT_LIMITS.maxDriveMinutes.max },
+      });
+    }
+  } else if (resolveMaxWalkMinutes(conditions) < MAX_WALK_MINUTES) {
     variants.push({
       label: `도보 거리를 ${MAX_WALK_MINUTES}분까지 넓히면`,
       conditions: { ...conditions, maxWalkMinutes: MAX_WALK_MINUTES },

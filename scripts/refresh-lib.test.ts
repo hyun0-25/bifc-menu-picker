@@ -44,6 +44,7 @@ const current = {
   menus: ["짬뽕", "짜장면", "탕수육"],
   pricePerPerson: 8000,
   walkMinutes: 1,
+  driveMinutes: 2,
   maxCapacity: 24,
   hasRoom: "정보 없음",
   roomCapacity: "정보 없음",
@@ -198,5 +199,13 @@ describe("formatList·findNewPlaces", () => {
     ];
     expect(findNewPlaces(docs, new Set(["1"])).map((p: { name: string }) => p.name)).toEqual(["가까운 새 가게", "먼 가게"]);
     expect(findNewPlaces(undefined, new Set())).toEqual([]);
+  });
+});
+
+describe("차량 시간 어림", () => {
+  it("가까울수록 짧고 최소 2분이다", async () => {
+    const { driveMinutes, BIFC_POINT } = await import("./refresh-lib.mjs");
+    expect(driveMinutes(BIFC_POINT)).toBe(2);
+    expect(driveMinutes({ lat: BIFC_POINT.lat + 0.01, lon: BIFC_POINT.lon })).toBeGreaterThan(driveMinutes(BIFC_POINT));
   });
 });

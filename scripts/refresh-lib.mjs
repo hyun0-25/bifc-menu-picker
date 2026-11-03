@@ -35,6 +35,14 @@ export function walkMinutes(point, ref = BIFC_POINT) {
   return Math.max(1, Math.ceil((distanceMeters(ref, point) * DETOUR) / METERS_PER_MINUTE));
 }
 
+/**
+ * BIFC에서 차로 가는 분을 어림한다 (직선거리 × 1.4 ÷ 분당 333m(시속 약 20km, 도심 신호 포함) + 출발·주차 2분, 올림).
+ * 실제 길찾기가 아니라 어림값이다.
+ */
+export function driveMinutes(point, ref = BIFC_POINT) {
+  return Math.max(2, Math.ceil((distanceMeters(ref, point) * 1.4) / 333) + 2);
+}
+
 function median(values) {
   const sorted = [...values].sort((x, y) => x - y);
   const mid = sorted.length >> 1;
@@ -67,6 +75,7 @@ export function derivePlace(panel, now = new Date()) {
     menus,
     price: representativePrice(items),
     walk: summary.point ? walkMinutes(summary.point) : undefined,
+    drive: summary.point ? driveMinutes(summary.point) : undefined,
     groupSeating: infos.includes("단체석"),
     roomLabel: infos.includes("프라이빗룸"),
     booking: Boolean(panel?.my_store_notice?.is_available_booking),
@@ -120,6 +129,9 @@ export function mergePlace(current, derived) {
       set("walkMinutes", derived.walk);
     }
   }
+
+  // 차량 시간은 어림값이라 항상 최신 계산값으로 맞춘다
+  if (derived.drive !== undefined) set("driveMinutes", derived.drive);
 
   // 단체석: 새로 표시되면 켠다. 표시가 사라진 것은 직접 확인한 값일 수 있어 알리기만 한다.
   if (derived.groupSeating && !current.groupSeating) set("groupSeating", true);

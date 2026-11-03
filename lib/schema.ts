@@ -7,8 +7,10 @@ import {
   INPUT_LIMITS,
   MAX_WALK_MINUTES,
   RESERVATION_STATUSES,
+  TRAVEL_MODES,
   UNKNOWN,
   type RecommendRequest,
+  type TravelMode,
 } from "./types";
 
 /** 숫자(min 이상 정수) 또는 "정보 없음" */
@@ -63,6 +65,12 @@ export const restaurantSchema = z.strictObject(
       .max(MAX_WALK_MINUTES, {
         error: `도보 시간은 ${MAX_WALK_MINUTES}분 이하여야 합니다 (그보다 먼 가게는 목록에 넣지 않음)`,
       }),
+    driveMinutes: z
+      .number({ error: "차량 시간은 숫자(분)여야 합니다" })
+      .int({ error: "차량 시간은 정수(분)여야 합니다" })
+      .min(1, { error: "차량 시간은 1분 이상이어야 합니다" })
+      .max(60, { error: "차량 시간은 60분 이하여야 합니다" })
+      .optional(),
     maxCapacity: intOrUnknown(1, `최대 인원은 1 이상의 정수(명) 또는 "${UNKNOWN}"이어야 합니다`),
     hasRoom: z.union([z.boolean(), z.literal(UNKNOWN)], {
       error: `룸 여부는 true, false 또는 "${UNKNOWN}"이어야 합니다`,
@@ -100,7 +108,7 @@ export const restaurantSchema = z.strictObject(
 
 // ── 추천 요청(입력 조건) ─────────────────────────────────────────────
 
-const { people, budget, maxWalkMinutes, extra } = INPUT_LIMITS;
+const { people, budget, maxWalkMinutes, maxDriveMinutes, extra } = INPUT_LIMITS;
 
 /**
  * 추가 조건(자유 입력)에 들어오면 안 되는 개인정보 모양: 이메일(@), 7자리 이상 숫자, 전화번호 모양.
@@ -149,6 +157,16 @@ export const recommendRequestSchema = z
       )
         .nullish()
         .transform((value) => value ?? undefined),
+      travelMode: z
+        .enum(TRAVEL_MODES, { error: "이동 수단은 도보 또는 차량 중에서 골라 주세요" })
+        .default("walk"),
+      maxDriveMinutes: intInRange(
+        maxDriveMinutes.min,
+        maxDriveMinutes.max,
+        `차량 거리는 ${maxDriveMinutes.min}~${maxDriveMinutes.max}분 사이로 입력해 주세요 (비우면 기본값)`,
+      )
+        .nullish()
+        .transform((value) => value ?? undefined),
       needRoom: z.boolean({ error: "룸 필요 여부가 올바르지 않습니다" }).default(false),
       needReservation: z.boolean({ error: "예약 필요 여부가 올바르지 않습니다" }).default(false),
       // 추가 조건(자연어): 줄바꿈·연속 공백을 정리하고, 길이와 개인정보 모양을 검사한다. 비면 없는 것으로 본다.
@@ -168,8 +186,12 @@ export const recommendRequestSchema = z
     },
     { error: "정해지지 않은 항목이 들어 있습니다" },
   )
-  // 룸 조건은 팀 회식에서만 묻는다. 점심이면 화면에 남은 룸 체크 값이 와도 무시한다. (예약 조건은 점심에도 쓴다)
-  .transform((request) => (request.purpose === "lunch" ? { ...request, needRoom: false } : request));
+  // 룸 조건과 차량 이동은 팀 회식에서만 쓴다. 점심이면 화면에 남은 값이 와도 무시한다. (예약 조건은 점심에도 쓴다)
+  .transform((request) =>
+    request.purpose === "lunch"
+      ? { ...request, needRoom: false, travelMode: "walk" as const, maxDriveMinutes: undefined }
+      : request,
+  );
 
 export type RequestValidationResult =
   | { ok: true; request: RecommendRequest }
@@ -202,6 +224,8 @@ export type FormValues = {
   budget: string;
   cuisines: RecommendRequest["cuisines"];
   maxWalkMinutes: string;
+  travelMode: TravelMode;
+  maxDriveMinutes: string;
   needRoom: boolean;
   needReservation: boolean;
   /** 추가 조건(자연어). 비워 둘 수 있다 */
@@ -226,6 +250,8 @@ export function validateFormValues(values: FormValues): RequestValidationResult 
     budget: toNumber(values.budget),
     cuisines: values.cuisines,
     maxWalkMinutes: toNumber(values.maxWalkMinutes),
+    travelMode: values.travelMode,
+    maxDriveMinutes: toNumber(values.maxDriveMinutes),
     needRoom: values.needRoom,
     needReservation: values.needReservation,
     extra: values.extra,

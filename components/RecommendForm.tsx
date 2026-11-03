@@ -9,6 +9,7 @@ import ResultCard from "@/components/ResultCard";
 import { validateFormValues, type FormValues } from "@/lib/schema";
 import {
   CUISINES,
+  DEFAULT_DRIVE_MINUTES,
   DEFAULT_WALK_MINUTES,
   INPUT_LIMITS,
   type Cuisine,
@@ -64,13 +65,15 @@ const EMPTY_FORM: FormValues = {
   budget: "",
   cuisines: [],
   maxWalkMinutes: "",
+  travelMode: "walk",
+  maxDriveMinutes: "",
   needRoom: false,
   needReservation: false,
   extra: "",
 };
 
 /** 입력 칸 순서 (검사 실패 시 첫 번째로 틀린 칸에 커서를 옮길 때 쓴다) */
-const NUMBER_FIELDS = ["people", "budget", "maxWalkMinutes"] as const;
+const NUMBER_FIELDS = ["people", "budget", "maxWalkMinutes", "maxDriveMinutes"] as const;
 type NumberField = (typeof NUMBER_FIELDS)[number];
 /** 검사 실패 시 커서를 옮길 칸의 순서 (추가 조건 칸은 맨 뒤) */
 const FOCUS_ORDER = [...NUMBER_FIELDS, "extra"] as const;
@@ -95,7 +98,12 @@ export default function RecommendForm() {
   const [requestError, setRequestError] = useState<string | null>(null);
   const id = useId();
   const current = PURPOSES.find((p) => p.value === form.purpose)!;
-  const { people, budget, maxWalkMinutes } = INPUT_LIMITS;
+  const { people, budget, maxWalkMinutes, maxDriveMinutes } = INPUT_LIMITS;
+  /** 팀 회식에서 차량을 골랐는지. 이때만 거리 칸이 차량 시간 칸이 된다 */
+  const byCar = form.purpose === "dinner" && form.travelMode === "car";
+  const distanceField = byCar ? "maxDriveMinutes" : "maxWalkMinutes";
+  const distanceLimit = byCar ? maxDriveMinutes : maxWalkMinutes;
+  const distanceDefault = byCar ? DEFAULT_DRIVE_MINUTES : DEFAULT_WALK_MINUTES[form.purpose];
 
   /** 칸 값을 바꾸면 그 칸의 안내는 지운다 (다시 제출할 때 새로 검사) */
   const update = <K extends keyof FormValues>(key: K, value: FormValues[K]) => {
@@ -112,7 +120,7 @@ export default function RecommendForm() {
   const choosePurpose = (next: Purpose) => {
     update("purpose", next);
     // 룸은 팀 회식에서만 묻는다. 점심으로 바꾸면 룸 체크를 지워 다른 목적의 값이 남지 않게 한다. (예약은 점심에도 묻는다)
-    if (next === "lunch") setForm((prev) => ({ ...prev, needRoom: false }));
+    if (next === "lunch") setForm((prev) => ({ ...prev, needRoom: false, travelMode: "walk" }));
   };
 
   const toggleCuisine = (cuisine: Cuisine) =>
@@ -305,27 +313,53 @@ export default function RecommendForm() {
           {fieldError("extra")}
         </div>
 
+        {form.purpose === "dinner" && (
+          <fieldset className="flex flex-col gap-1.5">
+            <legend className="mb-1.5 text-sm font-medium">이동 수단</legend>
+            <div className="grid grid-cols-2 gap-2">
+              {(
+                [
+                  { value: "walk", label: "🚶 도보" },
+                  { value: "car", label: "🚗 차량" },
+                ] as const
+              ).map((m) => (
+                <button
+                  key={m.value}
+                  type="button"
+                  aria-pressed={form.travelMode === m.value}
+                  onClick={() => update("travelMode", m.value)}
+                  className={`h-11 rounded-lg border text-sm font-semibold transition-colors ${
+                    form.travelMode === m.value
+                      ? "border-zinc-900 bg-zinc-900 text-white dark:border-zinc-100 dark:bg-zinc-100 dark:text-zinc-900"
+                      : "border-zinc-300 text-zinc-700 hover:border-zinc-500 dark:border-zinc-700 dark:text-zinc-300"
+                  }`}
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>
+          </fieldset>
+        )}
+
         <div className="grid grid-cols-2 gap-3">
           <div className="col-span-2 flex flex-col gap-1.5 sm:col-span-1">
-            <label htmlFor={`${id}-maxWalkMinutes`} className="text-sm font-medium">
-              도보 거리{" "}
-              <span className="font-normal text-zinc-500">
-                (비우면 {DEFAULT_WALK_MINUTES[form.purpose]}분 이내)
-              </span>
+            <label htmlFor={`${id}-${distanceField}`} className="text-sm font-medium">
+              {byCar ? "차량 거리" : "도보 거리"}{" "}
+              <span className="font-normal text-zinc-500">(비우면 {distanceDefault}분 이내)</span>
             </label>
             <div className="relative">
               <input
-                {...numberFieldProps("maxWalkMinutes", "pr-16")}
-                min={maxWalkMinutes.min}
-                max={maxWalkMinutes.max}
+                {...numberFieldProps(distanceField, "pr-16")}
+                min={distanceLimit.min}
+                max={distanceLimit.max}
                 step={1}
-                placeholder={`기본 ${DEFAULT_WALK_MINUTES[form.purpose]}`}
+                placeholder={`기본 ${distanceDefault}`}
               />
               <span aria-hidden="true" className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-sm text-zinc-500">
                 분 이내
               </span>
             </div>
-            {fieldError("maxWalkMinutes")}
+            {fieldError(distanceField)}
           </div>
         </div>
 

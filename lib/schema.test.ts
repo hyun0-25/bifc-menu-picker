@@ -21,7 +21,7 @@ function fieldsOf(body: unknown): Record<string, string> {
 
 describe("올바른 요청", () => {
   it("모든 칸이 맞으면 그대로 통과한다", () => {
-    expect(parseRecommendRequest(valid)).toEqual({ ok: true, request: valid });
+    expect(parseRecommendRequest(valid)).toEqual({ ok: true, request: { ...valid, travelMode: "walk" } });
   });
 
   it("선택 칸을 비우면 기본값을 채운다 (메뉴 상관없음, 거리 기본값, 룸·예약 불필요)", () => {
@@ -34,6 +34,7 @@ describe("올바른 요청", () => {
         budget: 10000,
         cuisines: [],
         maxWalkMinutes: undefined,
+        travelMode: "walk",
         needRoom: false,
         needReservation: false,
       },
@@ -130,6 +131,8 @@ describe("잘못된 값", () => {
 describe("validateFormValues (화면 입력)", () => {
   const form: FormValues = {
     purpose: "dinner",
+    travelMode: "walk",
+    maxDriveMinutes: "",
     people: "12",
     budget: "30000",
     cuisines: ["한식"],
@@ -148,6 +151,7 @@ describe("validateFormValues (화면 입력)", () => {
         budget: 30000,
         cuisines: ["한식"],
         maxWalkMinutes: undefined,
+        travelMode: "walk",
         needRoom: true,
         needReservation: false,
       },
@@ -180,5 +184,26 @@ describe("validateFormValues (화면 입력)", () => {
   it("점심이면 룸 체크는 보내지 않고 예약 체크는 보낸다", () => {
     const result = validateFormValues({ ...form, purpose: "lunch", needRoom: true, needReservation: true });
     expect(result.ok && [result.request.needRoom, result.request.needReservation]).toEqual([false, true]);
+  });
+});
+
+describe("이동 수단 (팀 회식 차량)", () => {
+  const dinner = { purpose: "dinner", people: 8, budget: 30000 };
+
+  it("회식에서 차량과 차량 거리를 받는다", () => {
+    const result = parseRecommendRequest({ ...dinner, travelMode: "car", maxDriveMinutes: 20 });
+    expect(result.ok && [result.request.travelMode, result.request.maxDriveMinutes]).toEqual(["car", 20]);
+  });
+
+  it("점심이면 차량을 보내도 도보로 바꾼다", () => {
+    const result = parseRecommendRequest({ ...dinner, purpose: "lunch", travelMode: "car", maxDriveMinutes: 20 });
+    expect(result.ok && [result.request.travelMode, result.request.maxDriveMinutes]).toEqual(["walk", undefined]);
+  });
+
+  it("정해지지 않은 이동 수단·범위 밖 차량 거리는 거부한다", () => {
+    expect(fieldsOf({ ...dinner, travelMode: "bike" }).travelMode).toBeDefined();
+    expect(fieldsOf({ ...dinner, travelMode: "car", maxDriveMinutes: 31 }).maxDriveMinutes).toBe(
+      "차량 거리는 1~30분 사이로 입력해 주세요 (비우면 기본값)",
+    );
   });
 });

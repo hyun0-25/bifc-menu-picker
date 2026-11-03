@@ -56,6 +56,8 @@ describe("추가 조건 입력 검사 (schema)", () => {
   it("화면 입력값(validateFormValues)도 같은 규칙을 쓴다", () => {
     const form: FormValues = {
       purpose: "lunch",
+      travelMode: "walk",
+      maxDriveMinutes: "",
       people: "4",
       budget: "15000",
       cuisines: [],

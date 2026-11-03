@@ -33,6 +33,13 @@ export type Unknown = typeof UNKNOWN;
  */
 export const SMALL_GROUP_LIMIT = 4;
 
+/** 이동 수단: 도보 / 차량 (팀 회식에서만 차량을 고를 수 있다) */
+export const TRAVEL_MODES = ["walk", "car"] as const;
+export type TravelMode = (typeof TRAVEL_MODES)[number];
+
+/** 차량 이동 시간을 입력하지 않았을 때 쓰는 기본값(분) — 팀 회식 전용 */
+export const DEFAULT_DRIVE_MINUTES = 15;
+
 /** 식당 한 곳 */
 export type Restaurant = {
   /** 고유 번호, 예: "r01" (겹치지 않게) */
@@ -49,6 +56,8 @@ export type Restaurant = {
   priceBasis?: string;
   /** BIFC 본사에서 걸어서 걸리는 시간(분), 1~15 */
   walkMinutes: number;
+  /** BIFC 본사에서 차로 가는 시간(분). 직선거리로 어림한 값이라 "약"으로 보여 준다. 없으면 차량 거리 조건에서 제외 */
+  driveMinutes?: number;
   /** 한 번에 받을 수 있는 최대 인원(명). 모르면 "정보 없음" */
   maxCapacity: number | Unknown;
   /** 룸(프라이빗룸) 여부. 룸 표시가 없어 확인하지 못했으면 "정보 없음" */
@@ -83,6 +92,10 @@ export type FilterConditions = {
   budget: number;
   /** 도보 거리(분). 비우면 목적별 기본값 */
   maxWalkMinutes?: number;
+  /** 이동 수단. 생략하면 도보 */
+  travelMode?: TravelMode;
+  /** 차량 이동 시간(분). 이동 수단이 차량일 때만 쓰고, 비우면 기본값 */
+  maxDriveMinutes?: number;
   /** 룸(단체석) 필요 여부 */
   needRoom: boolean;
   /** 예약 필요 여부 */
@@ -94,6 +107,7 @@ export const INPUT_LIMITS = {
   people: { min: 1, max: 30 },
   budget: { min: 5_000, max: 200_000 },
   maxWalkMinutes: { min: 1, max: MAX_WALK_MINUTES },
+  maxDriveMinutes: { min: 1, max: 30 },
   /** 추가 조건(자연어) 최대 글자 수 */
   extra: { max: 60 },
 } as const;

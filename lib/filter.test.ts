@@ -209,3 +209,32 @@ describe("relaxationHints (무엇을 빼면 몇 곳이 나오는지)", () => {
     ]);
   });
 });
+
+describe("차량 이동 (팀 회식)", () => {
+  const car: FilterConditions = { ...dinner, travelMode: "car", maxDriveMinutes: 5 };
+
+  it("차량이면 도보 시간이 아니라 차량 시간으로 거른다", () => {
+    expect(matchesConditions(shop("a", { walkMinutes: 14, driveMinutes: 5 }), car)).toBe(true);
+    expect(matchesConditions(shop("b", { walkMinutes: 2, driveMinutes: 6 }), car)).toBe(false);
+  });
+
+  it("차량 시간을 모르는 가게는 차량 조건에서 뺀다", () => {
+    expect(matchesConditions(shop("a", { walkMinutes: 2 }), car)).toBe(false);
+  });
+
+  it("차량 거리를 비우면 기본값(15분)을 쓴다", () => {
+    const noLimit: FilterConditions = { ...dinner, travelMode: "car" };
+    expect(matchesConditions(shop("a", { driveMinutes: 15 }), noLimit)).toBe(true);
+    expect(matchesConditions(shop("b", { driveMinutes: 16 }), noLimit)).toBe(false);
+  });
+
+  it("차량이면 차량 시간이 짧은 순으로 정렬한다", () => {
+    const list = [shop("a", { driveMinutes: 9 }), shop("b", { driveMinutes: 3 })];
+    expect(filterCandidates(list, car).map((r) => r.id)).toEqual(["b"]);
+    expect(filterCandidates(list, { ...car, maxDriveMinutes: 10 }).map((r) => r.id)).toEqual(["b", "a"]);
+  });
+
+  it("도보 조건은 이동 수단을 정하지 않으면 그대로 도보로 거른다", () => {
+    expect(matchesConditions(shop("a", { walkMinutes: 3, driveMinutes: 30 }), dinner)).toBe(true);
+  });
+});
