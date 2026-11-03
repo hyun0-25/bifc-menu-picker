@@ -95,6 +95,29 @@ describe("POST /api/recommend — 후보 0곳", () => {
   });
 });
 
+describe("POST /api/recommend — 조건 완화 안내", () => {
+  it("후보 0곳이어도 조건을 빼면 나오는 곳이 있으면 안내한다 (AI는 부르지 않음)", async () => {
+    // s2만 룸+예약 가능. 12명 룸 필요 + 점심 기본 거리가 아닌 회식 5분 이내 → s2는 8분이라 0곳
+    const res = await call({ purpose: "dinner", people: 12, budget: 30000, needRoom: true, needReservation: true, maxWalkMinutes: 5 });
+    const data: RecommendResponse = await res.json();
+    expect(data.recommendations).toEqual([]);
+    expect(data.notice).toBe(NOTICES.none);
+    expect(data.suggestions).toEqual([
+      "룸·예약 조건을 모두 빼면 1곳이 나와요",
+      "도보 거리를 15분까지 넓히면 1곳이 나와요",
+    ]);
+    expect(requestAiPicks).not.toHaveBeenCalled();
+  });
+
+  it("후보 1~2곳일 때도 안내가 함께 나오고, 안내할 것이 없으면 suggestions 항목이 없다", async () => {
+    const few: RecommendResponse = await (await call({ ...lunch, people: 2 })).json();
+    expect(few.recommendations).toHaveLength(2);
+    expect(few.suggestions).toEqual(["도보 거리를 15분까지 넓히면 3곳이 나와요"]);
+    const none: RecommendResponse = await (await call({ purpose: "dinner", people: 30, budget: 5000, needRoom: true })).json();
+    expect("suggestions" in none).toBe(false);
+  });
+});
+
 describe("POST /api/recommend — 오류", () => {
   it("입력이 잘못되면 400과 칸별 안내, AI는 부르지 않는다 (점검표 #2·#6)", async () => {
     const res = await call({ ...lunch, people: 0, budget: 1000 });

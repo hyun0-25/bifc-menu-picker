@@ -337,7 +337,9 @@ export default function RecommendForm() {
         )}
         {!loading && !requestError && response && response.recommendations.length === 0 && (
           <NoticeBanner variant="info" title={response.notice ?? "조건에 맞는 곳이 없어요."}>
-            인원·예산·도보 거리를 조금 넓히거나 룸·예약 조건을 빼 보세요.
+            {response.suggestions?.length
+              ? `${response.suggestions.join(", ")}.`
+              : "인원·예산·도보 거리를 조금 넓히거나 룸·예약 조건을 빼 보세요."}
           </NoticeBanner>
         )}
         {!loading && !requestError && response && response.recommendations.length > 0 && (
@@ -345,6 +347,7 @@ export default function RecommendForm() {
             {response.notice && (
               <NoticeBanner variant="info" title={response.notice}>
                 조건에 맞는 곳이 {response.recommendations.length}곳이라 그만큼만 보여 드려요.
+                {response.suggestions?.length ? ` ${response.suggestions.join(", ")}.` : ""}
               </NoticeBanner>
             )}
             <p className="sr-only">추천 {response.recommendations.length}곳을 골랐어요</p>

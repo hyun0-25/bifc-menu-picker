@@ -1,11 +1,11 @@
 // Design Ref: §2.2·§4 — 추천 서버 API: POST /api/recommend
 // 흐름: 입력 검사 → 목록 읽기 → 필터 → (후보 0곳이면 바로 안내) → AI 고르기·검사·1회 재요청·보정 → 안내 문구
 import { AiTimeoutError, requestAiPicks } from "@/lib/ai";
-import { filterCandidates } from "@/lib/filter";
+import { filterCandidates, relaxationHints } from "@/lib/filter";
 import { loadRestaurants, RestaurantDataError } from "@/lib/restaurants";
 import { parseRecommendRequest } from "@/lib/schema";
 import type { ErrorCode, ErrorResponse, RecommendResponse } from "@/lib/types";
-import { chooseNotice, NOTICES, pickWithRetry } from "@/lib/verify";
+import { chooseNotice, NOTICES, pickWithRetry, RECOMMEND_COUNT } from "@/lib/verify";
 
 /**
  * 이 API의 최대 실행 시간(초). 배포 플랫폼(Vercel)이 이 값을 보고 실행 제한을 정한다.
@@ -68,7 +68,12 @@ export async function POST(request: Request) {
 
   // 4) 후보가 0곳이면 AI를 부르지 않고 바로 안내한다 (처리 7, PRD must ① 규칙 2: 가게를 지어내지 않음)
   if (candidates.length === 0) {
-    const empty: RecommendResponse = { recommendations: [], notice: NOTICES.none };
+    const suggestions = relaxationHints(restaurants, conditions);
+    const empty: RecommendResponse = {
+      recommendations: [],
+      notice: NOTICES.none,
+      ...(suggestions.length > 0 && { suggestions }),
+    };
     return Response.json(empty);
   }
 
@@ -95,6 +100,12 @@ export async function POST(request: Request) {
 
   // 6) 안내 문구 (처리 11)
   const notice = chooseNotice(candidates.length, recommendations.length);
-  const response: RecommendResponse = { recommendations, ...(notice && { notice }) };
+  // 후보가 3곳 미만이면 무엇을 빼면 더 나오는지도 알려 준다
+  const suggestions = candidates.length < RECOMMEND_COUNT ? relaxationHints(restaurants, conditions) : [];
+  const response: RecommendResponse = {
+    recommendations,
+    ...(notice && { notice }),
+    ...(suggestions.length > 0 && { suggestions }),
+  };
   return Response.json(response);
 }

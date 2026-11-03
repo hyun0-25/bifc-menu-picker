@@ -2,6 +2,7 @@
 // Plan SC: SC-2 조건 준수 100% — 이 함수를 통과한 가게만 AI에 후보로 보낸다.
 import {
   DEFAULT_WALK_MINUTES,
+  MAX_WALK_MINUTES,
   SMALL_GROUP_LIMIT,
   UNKNOWN,
   type FilterConditions,
@@ -65,4 +66,42 @@ export function filterCandidates(
   return restaurants
     .filter((restaurant) => matchesConditions(restaurant, conditions))
     .sort((a, b) => a.walkMinutes - b.walkMinutes);
+}
+
+/**
+ * 결과가 적을 때 "무엇을 빼면 몇 곳이 나오는지" 알려 주는 안내 문구를 만든다 (PLAN 작업 23).
+ * 예약·룸·도보 거리를 하나씩 풀어 보고, 후보가 지금보다 늘어나는 경우만 돌려준다. 최대 3개.
+ * 예: ["예약 조건을 빼면 5곳이 나와요", "룸·예약 조건을 모두 빼면 9곳이 나와요"]
+ */
+export function relaxationHints(
+  restaurants: readonly Restaurant[],
+  conditions: FilterConditions,
+): string[] {
+  const current = filterCandidates(restaurants, conditions).length;
+  const variants: { label: string; conditions: FilterConditions }[] = [];
+
+  if (conditions.needReservation) {
+    variants.push({ label: "예약 조건을 빼면", conditions: { ...conditions, needReservation: false } });
+  }
+  if (conditions.needRoom) {
+    variants.push({ label: "룸 조건을 빼면", conditions: { ...conditions, needRoom: false } });
+  }
+  if (conditions.needReservation && conditions.needRoom) {
+    variants.push({
+      label: "룸·예약 조건을 모두 빼면",
+      conditions: { ...conditions, needRoom: false, needReservation: false },
+    });
+  }
+  if (resolveMaxWalkMinutes(conditions) < MAX_WALK_MINUTES) {
+    variants.push({
+      label: `도보 거리를 ${MAX_WALK_MINUTES}분까지 넓히면`,
+      conditions: { ...conditions, maxWalkMinutes: MAX_WALK_MINUTES },
+    });
+  }
+
+  return variants
+    .map((v) => ({ label: v.label, count: filterCandidates(restaurants, v.conditions).length }))
+    .filter((v) => v.count > current)
+    .slice(0, 3)
+    .map((v) => `${v.label} ${v.count}곳이 나와요`);
 }

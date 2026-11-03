@@ -1,7 +1,7 @@
 // PLAN 작업 6 점검: 필터가 PRD must ① 규칙 3~6대로 거르는지 확인한다 (Plan SC: SC-2 조건 준수 100%)
 // 실제 목록 파일은 계속 바뀌므로, 여기서는 값을 고정한 시험용 가게를 쓴다.
 import { describe, expect, it } from "vitest";
-import { filterCandidates, matchesConditions, resolveMaxWalkMinutes } from "./filter";
+import { filterCandidates, matchesConditions, relaxationHints, resolveMaxWalkMinutes } from "./filter";
 import type { FilterConditions, Restaurant } from "./types";
 
 function shop(id: string, overrides: Partial<Restaurant> = {}): Restaurant {
@@ -172,5 +172,40 @@ describe("\"정보 없음\" 처리 (Design §3.1)", () => {
 
   it("최대 인원을 알면 단체석 표시와 관계없이 숫자로 비교한다", () => {
     expect(matchesConditions(shop("a", { maxCapacity: 6, groupSeating: true }), { ...dinner, people: 8 })).toBe(false);
+  });
+});
+
+describe("relaxationHints (무엇을 빼면 몇 곳이 나오는지)", () => {
+  const list = [
+    shop("a", { reservation: "가능", hasRoom: true, roomCapacity: 12, walkMinutes: 12 }),
+    shop("b", { hasRoom: true, roomCapacity: 12, reservation: "불가" }),
+    shop("c", { hasRoom: true, roomCapacity: 12, reservation: "불가" }),
+    shop("d"),
+  ];
+  const strict: FilterConditions = { ...dinner, people: 10, needRoom: true, needReservation: true, maxWalkMinutes: 10 };
+
+  it("조건을 하나씩 풀었을 때 늘어나는 경우만 안내한다", () => {
+    // 지금: 예약 가능 + 룸 + 10분 이내 → 0곳 (a는 12분, b·c는 예약 불가, d는 룸 없음)
+    expect(filterCandidates(list, strict)).toHaveLength(0);
+    // 안내는 최대 3개: 조건 하나씩 풀기를 먼저, 그다음 모두 풀기, 거리 순
+    expect(relaxationHints(list, strict)).toEqual([
+      "예약 조건을 빼면 2곳이 나와요",
+      "룸 조건을 빼면 1곳이 나와요",
+      "룸·예약 조건을 모두 빼면 3곳이 나와요",
+    ]);
+  });
+
+  it("풀어도 늘지 않으면 안내하지 않는다", () => {
+    expect(relaxationHints(list, { ...dinner, people: 40, needRoom: true })).toEqual([]);
+  });
+
+  it("룸·예약이 필요 없고 거리가 15분이면 안내할 것이 없다", () => {
+    expect(relaxationHints(list, { ...dinner, people: 4 })).toEqual([]);
+  });
+
+  it("점심 기본 거리(10분)에서도 거리를 넓히는 안내가 나온다", () => {
+    expect(relaxationHints([shop("far", { walkMinutes: 12 })], lunch)).toEqual([
+      "도보 거리를 15분까지 넓히면 1곳이 나와요",
+    ]);
   });
 });

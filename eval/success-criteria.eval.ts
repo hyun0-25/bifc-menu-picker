@@ -125,7 +125,7 @@ it("테스트 질문 10개 — 성공 기준 SC-2·SC-3", async () => {
       retried: warn.mock.calls.length > 0,
       ms,
       status: res.status,
-      notice: data.notice,
+      notice: [data.notice, ...(data.suggestions ?? [])].filter(Boolean).join(" / ") || undefined,
     };
 
     // SC-3: 목록에 없는 가게, 목록과 다른 값

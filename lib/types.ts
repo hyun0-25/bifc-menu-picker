@@ -115,6 +115,8 @@ export type RecommendResponse = {
   recommendations: Recommendation[];
   /** 안내 문구 (후보 부족 등). 없으면 생략 */
   notice?: string;
+  /** 결과가 적을 때 "무엇을 빼면 몇 곳이 나오는지" 안내 (없으면 생략) */
+  suggestions?: string[];
 };
 
 /** 오류 코드 — Design §4 */
