@@ -36,6 +36,7 @@ npm run lint      # ESLint
 npm test          # 자동 점검 (AI 호출 없음, 요금 없음)
 npm run check:ai  # OpenAI 연결 확인 (실제 호출, 아주 적은 요금)
 npm run eval      # 테스트 질문 10개 성공 기준 평가 (실제 AI 호출). 실제 목록으로: EVAL_DATA=real npm run eval
+npm run refresh:data  # 식당 목록 최신화 미리보기 (반영: -- --write, 새 가게 찾기: -- --discover)
 ```
 
 **Next.js 주의**: 이 버전은 학습 데이터와 다를 수 있다. 코드를 쓰기 전에 `node_modules/next/dist/docs/`의 관련 문서를 먼저 읽는다 (예: Route Handler → `01-app/01-getting-started/15-route-handlers.md`, 환경 변수 → `01-app/02-guides/environment-variables.md`). Cache Components가 켜져 있으므로 캐싱 동작도 문서 기준으로 판단한다.
@@ -65,6 +66,7 @@ data/
 eval/                       # 성공 기준 평가용 시험 데이터와 평가 코드 (평소 점검에는 포함 안 됨)
 docs/                       # DEPLOY.md(배포 점검표), data-sources.md(목록 작성 기준), test-results.md(평가 결과)
 scripts/check-ai.mjs        # OpenAI 연결 확인
+scripts/refresh-*.mjs       # 식당 목록 자동 갱신 도구 (작성자용 점검 도구, 앱 코드가 아님)
 ```
 
 - 화면은 1개, 서버 API는 1개만 만든다. 페이지·API를 더 늘리려면 먼저 사용자에게 묻는다.
@@ -82,6 +84,7 @@ scripts/check-ai.mjs        # OpenAI 연결 확인
 - 공개 정보만 적는다. 영업시간·주차·맛 평가처럼 항목에 없는 정보를 임의로 추가하지 않는다.
 - Claude는 실제 식당 데이터를 **지어내서 채우지 않는다.** 공개된 출처에서 확인한 값만 쓰고 `source`를 남긴다. 예시 데이터가 필요하면 `(예시)`임을 분명히 표시하고 사용자에게 알린다. (시험용 가게는 `eval/`에만 둔다.)
 - 사용자가 전화·방문으로 확인한 값을 알려 주면 그 값으로 고친다.
+- 목록을 최신으로 맞출 때는 **먼저 `npm run refresh:data`(미리보기)** 로 무엇이 바뀌는지 본다. 도구는 최대 인원·룸 인원·이미 확인된 룸·예약 값을 덮어쓰지 않고, 폐업 의심 가게도 자동으로 지우지 않는다. `priceBasis`가 있는 가게는 가격 기준을 사람이 정한 곳이다. 자세한 내용은 [docs/data-sources.md](docs/data-sources.md) 5장.
 
 ## 5. 추천 로직 규칙 (PRD must ①·②, DESIGN 2.2·3.4)
 

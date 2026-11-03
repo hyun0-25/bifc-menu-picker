@@ -50,6 +50,12 @@ export const restaurantSchema = z.strictObject(
       .number({ error: "1인 가격은 숫자(원)여야 합니다" })
       .int({ error: "1인 가격은 정수(원)여야 합니다" })
       .positive({ error: "1인 가격은 0보다 커야 합니다" }),
+    priceBasis: z
+      .string({ error: "가격 기준은 글자여야 합니다" })
+      .trim()
+      .min(1, { error: "가격 기준이 비어 있습니다" })
+      .max(40, { error: "가격 기준은 40자 이내여야 합니다" })
+      .optional(),
     walkMinutes: z
       .number({ error: "도보 시간은 숫자(분)여야 합니다" })
       .int({ error: "도보 시간은 정수(분)여야 합니다" })

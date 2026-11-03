@@ -45,6 +45,8 @@ export type Restaurant = {
   menus?: string[];
   /** 1인 대표 가격(원) */
   pricePerPerson: number;
+  /** 가격을 사람이 정한 기준 (예: "평일 점심 성인 가격"). 있으면 자동 갱신이 가격·메뉴를 건드리지 않는다 */
+  priceBasis?: string;
   /** BIFC 본사에서 걸어서 걸리는 시간(분), 1~15 */
   walkMinutes: number;
   /** 한 번에 받을 수 있는 최대 인원(명). 모르면 "정보 없음" */
