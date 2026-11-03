@@ -27,7 +27,7 @@
 | 설정 | `next.config.ts`에 `cacheComponents: true`, `partialPrefetching: true` 켜져 있음 |
 | AI | OpenAI API (`openai` 라이브러리, `.env`의 `OPENAI_API_KEY`, 모델은 `OPENAI_MODEL` 또는 기본 `gpt-5.4-mini`) |
 | 검사 | `zod` (입력·목록 형식 검사), `vitest` (자동 점검) |
-| 배포 | Vercel (Part 5 예정, 준비 상태는 [docs/DEPLOY.md](docs/DEPLOY.md)) |
+| 배포 | Vercel (배포 완료: https://bifc-menu-picker.vercel.app, 점검표는 [docs/DEPLOY.md](docs/DEPLOY.md)) |
 
 ```bash
 npm run dev       # 개발 서버
